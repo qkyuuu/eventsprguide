@@ -5,9 +5,10 @@ ini_set('display_errors', 1);
 // 1. Connection using Azure SQL driver
 $connectionOptions = [
     "Database" => "events-pr-db",
-    "Uid" => "qmsadmin", 
-    "PWD" => "Codegenqms!", 
-    "Encrypt" => true
+    "Uid" => "qmsadmin",
+    "PWD" => "Codegenqms!",
+    "Encrypt" => true,
+    "LoginTimeout" => 30 // Adds more time for the connection to establish
 ];
 $serverName = "tcp:qms-server.database.windows.net,1433";
 $conn = sqlsrv_connect($serverName, $connectionOptions);
