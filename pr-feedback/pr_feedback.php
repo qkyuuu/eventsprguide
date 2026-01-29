@@ -1,17 +1,20 @@
 <?php
-// Enable error reporting (for debugging; disable in production)
+// Enable error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// InfinityFree database connection
-$host = "sql103.infinityfree.com";
-$username = "if0_40271114";
-$password = "QdO20m5hR4JbOHe";
-$dbname = "if0_40271114_peer_review_db";
+// 1. New Azure SQL Database connection
+$connectionOptions = [
+    "Database" => "events-pr-db",
+    "Uid" => "qmsadmin",
+    "PWD" => "Codegenqms!",
+    "Encrypt" => true
+];
+$serverName = "tcp:qms-server.database.windows.net,1433";
+$conn = sqlsrv_connect($serverName, $connectionOptions);
 
-$mysqli = new mysqli($host, $username, $password, $dbname);
-if ($mysqli->connect_error) {
-    die("Connection failed: " . $mysqli->connect_error);
+if (!$conn) {
+    die(print_r(sqlsrv_errors(), true));
 }
 
 // Get PRID from URL
@@ -19,15 +22,12 @@ $pr_id = $_GET['pr_id'] ?? null;
 
 // Fetch data
 if ($pr_id) {
-    $stmt = $mysqli->prepare("SELECT * FROM pr_submissions WHERE pr_id = ?");
-    $stmt->bind_param("s", $pr_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $feedback = $result->fetch_assoc();
-    $stmt->close();
+    $sql = "SELECT * FROM pr_submissions WHERE pr_id = ?";
+$stmt = sqlsrv_query($conn, $sql, array($pr_id));
+$feedback = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
 
     $answers = !empty($feedback['answers']) ? json_decode($feedback['answers'], true) : [];
-    $questions_result = $mysqli->query("SELECT * FROM questions");
+    $questions_result = sqlsrv_query($conn, "SELECT * FROM questions");
 } else {
     $conditions = [];
     $params = [];
@@ -70,17 +70,15 @@ if ($pr_id) {
 
 // Fetch appeal data for this PR
 $appeal_items = [];
-$appeal_query = $mysqli->prepare("
+$appeal_sql = "
     SELECT ai.*, a.pr_id 
     FROM pr_appeal_items ai
     JOIN pr_appeals a ON ai.appeal_id = a.appeal_id
     WHERE a.pr_id = ?
-");
-$appeal_query->bind_param("s", $pr_id);
-$appeal_query->execute();
-$appeal_result = $appeal_query->get_result();
+";
+$appeal_query = sqlsrv_query($conn, $appeal_sql, array($pr_id));
 
-while ($row = $appeal_result->fetch_assoc()) {
+while ($row = sqlsrv_fetch_array($appeal_query, SQLSRV_FETCH_ASSOC)) {
     $qid = $row['question_id'];
 
     // Decode JSON image paths
@@ -234,7 +232,7 @@ if (!empty($feedback['review_status'])) {
 }
 
 
-while ($question = $questions_result->fetch_assoc()) {
+while ($question = sqlsrv_fetch_array($questions_result, SQLSRV_FETCH_ASSOC)) {
     $qid = $question['question_id'];
 
     // Original reviewer answer
@@ -368,7 +366,7 @@ endif;
                 </tr>
             </thead>
             <tbody>
-            <?php while ($feedback = $result->fetch_assoc()): ?>
+            <?php while ($feedback = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)): ?>
                 <?php $taskName = $feedback['task_name'] ?? '';
 					  $shortTask = mb_strimwidth((string)$taskName, 0, 50, '...');
  				?>
