@@ -1,0 +1,248 @@
+/* Body styling */
+body {
+  font-family: "Poppins", sans-serif;
+  background-color: #f5f7fa;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+/* Main container */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 50px auto;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0px 20px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* Header */
+header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+h1 {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #007bff;
+}
+
+p {
+  font-size: 1.1rem;
+  color: #555;
+}
+
+/* Search Form */
+.search-form {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.input-group {
+  display: flex;
+  max-width: 500px;
+  width: 100%;
+}
+
+.search-input {
+  padding: 15px;
+  border-radius: 8px 0 0 8px;
+  border: 1px solid #ddd;
+  font-size: 1rem;
+  width: 80%;
+}
+
+.search-btn {
+  padding: 15px;
+  border-radius: 0 8px 8px 0;
+  border: 1px solid #ddd;
+  background-color: #007bff;
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.search-btn:hover {
+  background-color: #0056b3;
+}
+.na-options {
+  display: flex;
+  gap: 20px;
+  padding: 5px 20px
+}
+/* Feedback Card */
+.feedback-card {
+  background: #ffffff;
+  padding: 30px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+}
+
+.feedback-card h3 {
+  font-size: 2rem;
+  margin-bottom: 20px;
+  color: #007bff;
+}
+
+.feedback-card p {
+  font-size: 1.1rem;
+  margin: 10px 0;
+}
+
+.feedback-card ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+.feedback-card ul li {
+  font-size: 1rem;
+  background-color: #f1f4f9;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+}
+.emailBtn {
+  display: flex;
+  align-items: center; /* vertically center */
+  gap: 15px; /* space between text and button */
+  margin-bottom: 15px; /* add some spacing below */
+}
+
+.images-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.images-gallery img {
+  max-width: 200px;
+  border-radius: 12px;
+}
+
+/* Feedback Table */
+/* Feedback Table */
+.feedback-table {
+  margin-top: 30px;
+}
+
+.feedback-table table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* ensures ellipsis works */
+}
+
+.feedback-table th,
+.feedback-table td {
+  padding: 12px;
+  border: 1px solid #ddd;
+  font-size: 1rem;
+  white-space: nowrap; /* prevent wrapping */
+  overflow: hidden; /* hide overflow */
+  text-overflow: ellipsis; /* show ... when text is cut */
+}
+
+.feedback-table th {
+  background-color: #007bff;
+  color: white;
+}
+
+.feedback-table tr:hover {
+  background-color: #f1f4f9;
+}
+
+/* Column widths */
+.feedback-table th:nth-child(1),
+.feedback-table td:nth-child(1) {
+  width: 12%;
+}
+
+.feedback-table th:nth-child(2),
+.feedback-table td:nth-child(2) {
+  width: 40%;
+  text-align: left;
+}
+
+.feedback-table th:nth-child(3),
+.feedback-table td:nth-child(3) {
+  width: 15%;
+}
+
+.feedback-table th:nth-child(4),
+.feedback-table td:nth-child(4) {
+  width: 20%;
+}
+
+.feedback-table th:nth-child(5),
+.feedback-table td:nth-child(5) {
+  width: 13%;
+}
+
+/* Button */
+.btn-view-feedback {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn-view-feedback:hover {
+  background-color: #0056b3;
+}
+
+/* Status Badge Styles */
+.status-badge {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 12px;
+    color: #fff;
+    font-weight: bold;
+    font-size: 0.9rem;
+    background-color: #28a745 !important;
+}
+
+.status-badge.status-completed-valid {
+    background-color: #28a745 !important; /* green */
+}
+
+.status-badge.status-completed-invalid {
+    background-color: #dc3545!important; /* red */
+}
+
+.status-badge.status-pending-builder {
+    background-color: #ffc107!important; /* yellow */
+    color: #212529; /* dark text */
+}
+
+.status-badge.status-pending {
+    background-color: #ffc107!important; /* yellow */
+    color: #212529; /* dark text */
+}
+
+/* Highlight selected Valid / Invalid option */
+.toggle-valid.active {
+    background-color: #28a745 !important;
+    color: #fff !important;
+}
+
+.toggle-invalid.active {
+    background-color: #dc3545 !important;
+    color: #fff !important;
+}
+
+/* Smooth visual toggle */
+.toggle-valid, .toggle-invalid {
+    transition: 0.2s;
+    cursor: pointer;
+}
+.li-appeal-container{
+    display:flex;
+}
