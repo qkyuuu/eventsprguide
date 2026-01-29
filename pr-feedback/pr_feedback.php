@@ -78,7 +78,8 @@ $appeal_sql = "
 ";
 $appeal_query = sqlsrv_query($conn, $appeal_sql, array($pr_id));
 
-while ($row = sqlsrv_fetch_array($appeal_query, SQLSRV_FETCH_ASSOC)) {
+if ($appeal_query !== false) {
+    while ($row = sqlsrv_fetch_array($appeal_query, SQLSRV_FETCH_ASSOC)) {
     $qid = $row['question_id'];
 
     // Decode JSON image paths
@@ -89,6 +90,7 @@ while ($row = sqlsrv_fetch_array($appeal_query, SQLSRV_FETCH_ASSOC)) {
         "explanation" => $row["explanation"],
         "image_paths" => $images
     ];
+  }
 }
 
 $appeal_query->close();
