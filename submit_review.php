@@ -77,6 +77,6 @@ $stmt = sqlsrv_query($conn, $sql, $params);
 if ($stmt === false) { die(print_r(sqlsrv_errors(), true)); }
 
 // 6. Redirect to home
-header("Location: /index.html?success=true");
+header("Location: pr-feedback/pr_feedback.php?pr_id=" . $next_pr_id . "&success=true");
 exit;
 ?>
