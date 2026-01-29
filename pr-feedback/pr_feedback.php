@@ -93,7 +93,7 @@ if ($appeal_query !== false) {
   }
 }
 
-//$appeal_query->close();
+// $appeal_query->close();
 
 ?>
 
@@ -221,7 +221,7 @@ if ($appeal_query !== false) {
     		(<?= htmlspecialchars($feedback['builder_email'] ?? '') ?>)
 		</p>
 
-        <p><strong>Date:</strong> <?= htmlspecialchars($feedback['submission_date']) ?></p>
+        <p><strong>Date:</strong> <?= htmlspecialchars($feedback['created_at']->format('Y-m-d H:i:s')) ?></p>
     </div>
 
     <h4>Feedback</h4>
@@ -376,7 +376,7 @@ endif;
                     <td><?= htmlspecialchars($feedback['pr_id']) ?></td>
                     <td title="<?= htmlspecialchars($feedback['task_name'] ?? '') ?>"><?= htmlspecialchars($shortTask) ?></td>
                     <td><?= htmlspecialchars($feedback['status']) ?></td>
-                    <td><?= htmlspecialchars($feedback['submission_date']) ?></td>
+                    <td><?= htmlspecialchars($feedback['created_at']->format('Y-m-d')) ?></td>
                     <td><a href="pr_feedback.php?pr_id=<?= htmlspecialchars($feedback['pr_id']) ?>" class="btn btn-info btn-sm">View Feedback</a></td>
                 </tr>
             <?php endwhile; ?>
