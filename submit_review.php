@@ -8,7 +8,7 @@ $connectionOptions = [
     "Uid" => "qmsadmin",
     "PWD" => "Codegenqms!",
     "Encrypt" => true,
-    "LoginTimeout" => 30 // Adds more time for the connection to establish
+    "LoginTimeout" => 60 // Wait up to 60 seconds to connect
 ];
 $serverName = "tcp:qms-server.database.windows.net,1433";
 $conn = sqlsrv_connect($serverName, $connectionOptions);
