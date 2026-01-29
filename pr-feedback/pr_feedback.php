@@ -93,7 +93,7 @@ if ($appeal_query !== false) {
   }
 }
 
-$appeal_query->close();
+//$appeal_query->close();
 
 ?>
 
