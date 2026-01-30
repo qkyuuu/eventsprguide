@@ -222,7 +222,7 @@ while ($question = sqlsrv_fetch_array($questions_result, SQLSRV_FETCH_ASSOC)) {
     $qid = $question['question_id'];
 
     // Original reviewer answer
-    $answer = $answers['q'.$qid] ?? null;
+    $answer = $answers['q' . $qid] ?? "";
 
     // Admin review status (valid/invalid) for this question
     $review_status = $review_statuses['q'.$qid] ?? null;
