@@ -31,41 +31,25 @@ $feedback = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
 } else {
     $conditions = [];
     $params = [];
-    $types = '';
 
     // Status filter
     if (!empty($_GET['status'])) {
         $conditions[] = "status = ?";
         $params[] = $_GET['status'];
-        $types .= 's';
-    }
-
-    // Builder name filter (partial match)
-    if (!empty($_GET['builder'])) {
-        $conditions[] = "builder_name LIKE ?";
-        $params[] = '%' . $_GET['builder'] . '%';
-        $types .= 's';
-    }
-
-    // Submission date filter
-    if (!empty($_GET['submission_date'])) {
-        $conditions[] = "DATE(submission_date) = ?";
-        $params[] = $_GET['submission_date'];
-        $types .= 's';
     }
 
     $sql = "SELECT * FROM pr_submissions";
-    if (!empty($conditions)) {
+    if ($conditions) {
         $sql .= " WHERE " . implode(" AND ", $conditions);
     }
-    $sql .= " ORDER BY submission_date DESC";
+    $sql .= " ORDER BY created_at DESC";
 
-    $stmt = $mysqli->prepare($sql);
-    if (!empty($params)) {
-        $stmt->bind_param($types, ...$params);
+    // Azure SQL version of execution
+    $result = sqlsrv_query($conn, $sql, $params);
+
+    if ($result === false) {
+        die(print_r(sqlsrv_errors(), true));
     }
-    $stmt->execute();
-    $result = $stmt->get_result();
 }
 
 // Fetch appeal data for this PR
@@ -244,7 +228,8 @@ while ($question = sqlsrv_fetch_array($questions_result, SQLSRV_FETCH_ASSOC)) {
     $review_status = $review_statuses['q'.$qid] ?? null;
 
     // Only display questions with an answer (skip 'Not Applicable')
-    if ($answer && strtolower($answer) !== 'not applicable') {
+    $cleanAnswer = trim(strtolower($answer));
+if ($answer && $cleanAnswer !== 'not applicable' && $cleanAnswer !== '') {
 
         echo "<li class='list-group-item mb-3 shadow-sm p-4' style='border-radius:10px; position:relative;'>";
 
