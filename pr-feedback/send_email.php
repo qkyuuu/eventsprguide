@@ -8,7 +8,6 @@ if (!$pr_id) {
 }
 
 // ------------------- Azure SQL Database Connection -------------------
-// Matches your pr_feedback.php connection exactly
 $connectionOptions = [
     "Database" => "events-pr-db",
     "Uid" => "qmsadmin",
@@ -35,9 +34,8 @@ if (!$feedback) {
     exit;
 }
 
-// ------------------- Decode Answers & Images -------------------
+// ------------------- Decode Answers -------------------
 $answers = !empty($feedback['answers']) ? json_decode($feedback['answers'], true) : [];
-$images  = !empty($feedback['image_paths']) ? json_decode($feedback['image_paths'], true) : [];
 
 // ------------------- Fetch Questions -------------------
 $questions_result = sqlsrv_query($conn, "SELECT * FROM questions");
@@ -46,47 +44,65 @@ while ($row = sqlsrv_fetch_array($questions_result, SQLSRV_FETCH_ASSOC)) {
     $questions[$row['question_id']] = $row['question_text'];
 }
 
-// ------------------- Capitalize Names & Shorten Task -------------------
+// ------------------- Format Names & Task -------------------
+// Recipient is the Builder
 $builderName = ucwords(strtolower($feedback['builder_name'] ?? 'Builder'));
+// Sender is the Peer Reviewer
 $reviewerName = ucwords(strtolower($feedback['peer_reviewer_name'] ?? 'Reviewer'));
 
 $originalTaskName = $feedback['task_name'] ?? 'Unknown Task';
 $taskNameShort = (strlen($originalTaskName) > 50) ? substr($originalTaskName, 0, 47) . '...' : $originalTaskName;
 
 // ------------------- Build Email Body (HTML) -------------------
-$emailBody = '<html><body style="font-family:Arial,sans-serif;">';
-$emailBody .= "<h2>Feedback for Task: $taskNameShort</h2>";
-$emailBody .= "<p>Hi <strong>$builderName</strong>, your task has been reviewed by <strong>$reviewerName</strong>.</p>";
+$emailBody = '<html><body style="font-family:Arial,sans-serif; color: #333;">';
+$emailBody .= "<div style='background-color: #f8f9fa; padding: 20px; border-bottom: 3px solid #0078d4;'>";
+$emailBody .= "<h2 style='color: #0078d4; margin-top: 0;'>New Peer Review Feedback</h2>";
+$emailBody .= "</div>";
+$emailBody .= "<div style='padding: 20px;'>";
+$emailBody .= "<p>Hi <strong>$builderName</strong>,</p>";
+$emailBody .= "<p>Your task <strong>$taskNameShort</strong> has been reviewed by <strong>$reviewerName</strong>.</p>";
+$emailBody .= "<hr style='border: 0; border-top: 1px solid #eee;'>";
+$emailBody .= "<h3>Review Summary:</h3>";
 $emailBody .= "<ul>";
 
 foreach ($questions as $qid => $qText) {
     $answerKey = 'q' . $qid;
     if (isset($answers[$answerKey]) && strtolower($answers[$answerKey]) === 'applicable') {
-        $remarks = $answers['remarks' . $qid] ?? 'No remarks';
-        $emailBody .= "<li><strong>$qText</strong>: $remarks</li>";
+        $remarks = $answers['remarks' . $qid] ?? 'No remarks provided';
+        $emailBody .= "<li style='margin-bottom: 10px;'><strong>" . htmlspecialchars($qText) . "</strong><br>";
+        $emailBody .= "<span style='color: #666;'>Remarks: " . htmlspecialchars($remarks) . "</span></li>";
     }
 }
 
 $emailBody .= "</ul>";
-$emailBody .= '<p><a href="https://eventsprguide.infinityfree.me/pr-feedback/pr_feedback.php?pr_id=' . urlencode($pr_id) . '">Click here to view full feedback and images</a></p>';
-$emailBody .= '</body></html>';
+$emailBody .= "<p style='margin-top: 30px;'>";
+$emailBody .= "<a href='https://eventsprguide.infinityfree.me/pr-feedback/pr_feedback.php?pr_id=" . urlencode($pr_id) . "' ";
+$emailBody .= "style='background-color: #0078d4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>View Full Feedback & Images</a>";
+$emailBody .= "</p>";
+$emailBody .= "<p style='font-size: 0.9em; color: #888; margin-top: 40px;'>Regards,<br><strong>$reviewerName</strong></p>";
+$emailBody .= "</div></body></html>";
 
 // ------------------- POWER AUTOMATE TRIGGER -------------------
 
 $flowUrl = 'https://default10f787270c1845afb9ee97e94fd5bc.d8.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a4121885fc0243a1a3ec9ffe0d57c42b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=_N3ad7Adnjiw-DNpQzNQda7f80ExDkpeVH4U4IfTPK8';
 
 $data = [
-    "recipient_email" => $feedback['builder_email'] ?? 'v-jopastoral@microsoft.com',
-    "recipient_name"  => $builderName,
-    "subject"         => "Peer Review Feedback: $taskNameShort (PRID: $pr_id)",
+    "recipient_email" => trim($feedback['builder_email'] ?? 'v-jopastoral@microsoft.com'),
+    "recipient_name"  => $builderName, // To the Builder
+    "subject"         => "Peer Review Feedback: $taskNameShort (From: $reviewerName)",
     "email_body"      => $emailBody
 ];
+
+$jsonData = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
 $ch = curl_init($flowUrl);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 curl_setopt($ch, CURLOPT_POST, true);
-curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+curl_setopt($ch, CURLOPT_POSTFIELDS, $jsonData);
+curl_setopt($ch, CURLOPT_HTTPHEADER, [
+    'Content-Type: application/json',
+    'Content-Length: ' . strlen($jsonData)
+]);
 curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); 
 
 $response = curl_exec($ch);
@@ -97,8 +113,12 @@ curl_close($ch);
 header('Content-Type: application/json');
 
 if ($httpCode >= 200 && $httpCode < 300) {
-    echo json_encode(['success' => true, 'message' => "Email triggered successfully via Power Automate!"]);
+    echo json_encode(['success' => true, 'message' => "Feedback sent to $builderName!"]);
 } else {
-    echo json_encode(['success' => false, 'message' => "Flow failed (Code: $httpCode)", 'debug' => $response]);
+    echo json_encode([
+        'success' => false, 
+        'message' => "Power Automate Error (Code: $httpCode)", 
+        'debug' => $response
+    ]);
 }
 ?>
