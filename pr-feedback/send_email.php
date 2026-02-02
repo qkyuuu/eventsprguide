@@ -91,7 +91,7 @@ $emailBody .= '</table></td></tr><tr><td align="center"><img src="https://events
 // ------------------- POWER AUTOMATE TRIGGER -------------------
 
 // 1. YOUR ACTION: Paste your "HTTP POST URL" from Power Automate here
-$flowUrl = 'PASTE_YOUR_POWER_AUTOMATE_URL_HERE';
+$flowUrl = 'https://default10f787270c1845afb9ee97e94fd5bc.d8.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a4121885fc0243a1a3ec9ffe0d57c42b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=_N3ad7Adnjiw-DNpQzNQda7f80ExDkpeVH4U4IfTPK8';
 
 $recipientEmail = $feedback['builder_email'] ?? 'v-jopastoral@microsoft.com';
 $recipientName  = $feedback['builder_name'] ?? 'Builder';
