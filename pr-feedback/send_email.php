@@ -85,6 +85,11 @@ $data = [
     "email_body"      => $emailBody
 ];
 
+die(json_encode(["DEBUG_SENT_TO_FLOW" => $data])); 
+// --------------------------------
+
+$jsonData = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
 $jsonData = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
 // 9. Send Request via cURL
