@@ -80,9 +80,9 @@ $flowUrl = 'https://default10f787270c1845afb9ee97e94fd5bc.d8.environment.api.pow
 // Keys below must match your "Request Body JSON Schema" in Power Automate
 $data = [
     "recipient_email" => trim($feedback['builder_email'] ?? 'v-jopastoral@microsoft.com'),
-    "recipient_name"  => $builderName,
-    "subject"         => "Peer Review Feedback: $pr_id (From: $reviewerName)",
-    "email_body"      => $emailBody
+    "recipient_name"  => $builderName ?: 'Builder', // Ensure this isn't empty
+    "subject"         => "Peer Review Feedback: " . ($pr_id ?: 'N/A'),
+    "email_body"      => $emailBody ?: 'No content'
 ];
 
 $jsonData = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
