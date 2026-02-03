@@ -74,7 +74,7 @@ $emailBody .= "<p>Regards,<br><strong>$reviewerName</strong></p>";
 $emailBody .= "</body></html>";
 
 // 8. POWER AUTOMATE TRIGGER
-// This URL must match the one in your Power Automate Trigger
+// This URL matches the signature in your screenshot
 $flowUrl = 'https://default10f787270c1845afb9ee97e94fd5bc.d8.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a4121885fc0243a1a3ec9ffe0d57c42b/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=_N3ad7Adnjiw-DNpQzNQda7f80ExDkpeVH4U4IfTPK8';
 
 // Keys below must match your "Request Body JSON Schema" in Power Automate
