@@ -296,7 +296,9 @@ endif;
 
         if (!empty($images['q'.$qid])) {
             foreach ($images['q'.$qid] as $img) {
-                $path = '../uploads/' . htmlspecialchars($img);
+                $githubUploadsBase = 'https://raw.githubusercontent.com/qkyuuu/eventsprguide/main/uploads/';
+$path = $githubUploadsBase . rawurlencode($img);
+
                 echo "<img src='$path' class='img-thumbnail preview-image mt-2'
                      alt='Proof Image'
                      style='max-width:150px;margin-right:10px;cursor:pointer;'
