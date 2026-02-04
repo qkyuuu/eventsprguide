@@ -291,24 +291,25 @@ endif;
         }
 
         // Proof Images
-        $images = isset($feedback['image_paths']) ? json_decode($feedback['image_paths'], true) : [];
-        echo "<div class='mt-3'><strong>Proof:</strong><br>";
+       $images = isset($feedback['image_paths']) ? json_decode($feedback['image_paths'], true) : [];
+echo "<div class='mt-3'><strong>Proof:</strong><br>";
 
-        if (!empty($images['q'.$qid])) {
-            foreach ($images['q'.$qid] as $img) {
-                $githubUploadsBase = 'https://raw.githubusercontent.com/qkyuuu/eventsprguide/main/uploads/';
-$path = $githubUploadsBase . rawurlencode($img);
+$githubUploadsBase = 'https://raw.githubusercontent.com/qkyuuu/eventsprguide/main/uploads/';
 
-                echo "<img src='$path' class='img-thumbnail preview-image mt-2'
-                     alt='Proof Image'
-                     style='max-width:150px;margin-right:10px;cursor:pointer;'
-                     data-bs-toggle='modal'
-                     data-bs-target='#imageModal'
-                     data-img-src='$path'>"; 
-            }
-        } else {
-            echo "<p class='text-muted fst-italic'>No images uploaded.</p>";
-        }
+if (!empty($images['q'.$qid])) {
+    foreach ($images['q'.$qid] as $img) {
+        $path = $githubUploadsBase . rawurlencode($img);
+
+        echo "<img src='$path'
+              class='img-thumbnail preview-image mt-2'
+              style='max-width:150px;margin-right:10px;cursor:pointer;'
+              data-bs-toggle='modal'
+              data-bs-target='#imageModal'
+              data-img-src='$path'>";
+    }
+} else {
+    echo "<p class='text-muted fst-italic'>No images uploaded.</p>";
+}
 
         echo "</div>"; // proof container
         echo "</li><hr>";
