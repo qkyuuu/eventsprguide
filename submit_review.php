@@ -2,6 +2,10 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
+require_once __DIR__ . '/vendor/autoload.php';
+
+use MicrosoftAzure\Storage\Blob\BlobRestProxy;
+
 // ---------------------------
 // 1. Azure SQL Connection
 // ---------------------------
@@ -12,6 +16,7 @@ $connectionOptions = [
     "Encrypt"  => true,
     "LoginTimeout" => 60
 ];
+
 $serverName = "tcp:qms-server.database.windows.net,1433";
 $conn = sqlsrv_connect($serverName, $connectionOptions);
 
@@ -20,7 +25,21 @@ if (!$conn) {
 }
 
 // ---------------------------
-// 2. Collect Answers
+// 2. Azure Blob Connection
+// ---------------------------
+$accountName = getenv('AZURE_STORAGE_ACCOUNT');
+$accountKey  = getenv('AZURE_STORAGE_KEY');
+$container   = getenv('AZURE_STORAGE_CONTAINER');
+
+$connectionString =
+    "DefaultEndpointsProtocol=https;" .
+    "AccountName=$accountName;" .
+    "AccountKey=$accountKey";
+
+$blobClient = BlobRestProxy::createBlobService($connectionString);
+
+// ---------------------------
+// 3. Collect Answers
 // ---------------------------
 $answers = [];
 foreach ($_POST as $key => $value) {
@@ -34,24 +53,38 @@ foreach ($_POST as $key => $value) {
 }
 
 // ---------------------------
-// 3. Collect Image Filenames ONLY
+// 4. Upload Images to Azure Blob
 // ---------------------------
-// Images are assumed to already exist in GitHub /uploads
 $imagePaths = [];
 
-foreach ($_POST as $key => $value) {
-    // Expecting inputs like: image_q1[] = filename.png
-    if (preg_match('/^image_q(\d+)$/', $key, $matches)) {
+foreach ($_FILES as $inputName => $fileArray) {
+    if (preg_match('/^image_q(\d+)$/', $inputName, $matches)) {
         $qId = $matches[1];
+        $imagePaths['q'.$qId] = [];
 
-        if (!empty($value)) {
-            $imagePaths['q' . $qId] = is_array($value) ? $value : [$value];
+        for ($i = 0; $i < count($fileArray['name']); $i++) {
+            if ($fileArray['error'][$i] === UPLOAD_ERR_OK) {
+
+                $originalName = basename($fileArray['name'][$i]);
+                $blobName = uniqid() . '_' . $originalName;
+
+                $content = fopen($fileArray['tmp_name'][$i], 'r');
+
+                $blobClient->createBlockBlob(
+                    $container,
+                    $blobName,
+                    $content
+                );
+
+                // Save filename only
+                $imagePaths['q'.$qId][] = $blobName;
+            }
         }
     }
 }
 
 // ---------------------------
-// 4. Generate PR ID
+// 5. Generate PR ID
 // ---------------------------
 $getIds = sqlsrv_query($conn, "SELECT pr_id FROM pr_submissions");
 $max_num = 0;
@@ -66,11 +99,11 @@ while ($row = sqlsrv_fetch_array($getIds, SQLSRV_FETCH_ASSOC)) {
 $next_pr_id = 'PRID' . str_pad($max_num + 1, 6, '0', STR_PAD_LEFT);
 
 // ---------------------------
-// 5. Insert into Database
+// 6. Insert into Database
 // ---------------------------
 $params = [
     $next_pr_id,
-    'v-jopastoral@microsoft.com', // submitter
+    'v-jopastoral@microsoft.com',
     $_POST['task_name'] ?? '',
     $_POST['peer_reviewer_name'] ?? '',
     $_POST['peer_reviewer_email'] ?? '',
@@ -95,8 +128,7 @@ if ($stmt === false) {
 }
 
 // ---------------------------
-// 6. Redirect
+// 7. Redirect
 // ---------------------------
 header("Location: pr-feedback/pr_feedback.php?pr_id=$next_pr_id&success=true");
 exit;
-?>
