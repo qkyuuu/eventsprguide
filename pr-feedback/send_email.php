@@ -212,11 +212,11 @@ How would you like to proceed with this peer review?
 <tr>
 <td width="15%"></td>
 <td width="30%" align="center" bgcolor="#28a745" style="padding:10px; border-radius:6px;">
-<a href="https://eventsprguide.azurewebsites.net/accept_review.php?pr_id=' . urlencode($pr_id) . '" style="color:#fff; text-decoration:none; display:block;">Accept</a>
+<a href="https://eventsprguide.azurewebsites.net/pr-feedback/accept_review.php?pr_id=' . urlencode($pr_id) . '" style="color:#fff; text-decoration:none; display:block;">Accept</a>
 </td>
 <td width="10%"></td>
 <td width="30%" align="center" bgcolor="#dc3545" style="padding:10px; border-radius:6px;">
-<a href="https://eventsprguide.azurewebsites.net/appeal_review.php?pr_id=' . urlencode($pr_id) . '" style="color:#fff; text-decoration:none; display:block;">Appeal</a>
+<a href="https://eventsprguide.azurewebsites.net/pr-feedback/appeal_review.php?pr_id=' . urlencode($pr_id) . '" style="color:#fff; text-decoration:none; display:block;">Appeal</a>
 </td>
 <td width="15%"></td>
 </tr>
