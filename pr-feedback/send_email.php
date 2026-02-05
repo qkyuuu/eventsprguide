@@ -71,7 +71,7 @@ $taskName      = $feedback['task_name'] ?? 'Task';
 $taskNameShort = mb_strimwidth($taskName, 0, 60, '...');
 
 // ✅ GitHub RAW base path (THIS FIXES IMAGES)
-$githubUploadsBase = 'https://raw.githubusercontent.com/qkyuuu/eventsprguide/main/uploads/';
+$azureBlobBase = 'https://eventsprimagestore.blob.core.windows.net/pr-images/';
 
 // ---------------------------
 // 6. Build HTML Email Body
@@ -171,7 +171,7 @@ foreach ($questions as $qid => $qText) {
         $count = 0;
 
         foreach ($qImages as $img) {
-            $imgUrl = $githubUploadsBase . rawurlencode($img);
+            $imgUrl = $azureBlobBase . rawurlencode($img);
 
             $emailBody .= '
             <td width="33%" align="center">
