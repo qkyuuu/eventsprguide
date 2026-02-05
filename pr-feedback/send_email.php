@@ -71,6 +71,7 @@ $taskName      = $feedback['task_name'] ?? 'Task';
 $taskNameShort = mb_strimwidth($taskName, 0, 60, '...');
 
 // ✅ GitHub RAW base path (THIS FIXES IMAGES)
+$githubImg = 'https://raw.githubusercontent.com/qkyuuu/eventsprguide/main/img/';
 $azureBlobBase = 'https://eventsprimagestore.blob.core.windows.net/pr-images/';
 
 // ---------------------------
@@ -97,7 +98,7 @@ $emailBody = '<html><head><meta charset="UTF-8"></head>
 <!-- HEADER IMAGE -->
 <tr>
 <td align="center">
-<img src="' . $azureBlobBase . '691d19c2d7a10_Email%20%E2%80%93%20Banner%20(OFT-Field)_640x120_DesignOnly.png" width="100%" alt="Header">
+<img src="' . $githubImg . '691d19c2d7a10_Email%20%E2%80%93%20Banner%20(OFT-Field)_640x120_DesignOnly.png" width="100%" alt="Header">
 </td>
 </tr>
 
