@@ -78,66 +78,66 @@ $azureBlobBase = 'https://eventsprimagestore.blob.core.windows.net/pr-images/';
 // ---------------------------
 // 6. Build HTML Email Body
 // ---------------------------
-$emailBody = '<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        .MsoNormal { margin: 0; padding: 0; }
-    </style>
-</head>
-<body style="font-family:\'Aptos\',\'Segoe UI\',sans-serif; margin:0; padding:0; background-color:#e3e3e3;">
+$emailBody = '<html><head><meta charset="UTF-8"></head>
+<body style="font-family:Arial,sans-serif; margin:0; padding:0;">
 
-<table width="100%" bgcolor="#e3e3e3" cellpadding="0" cellspacing="0" style="width:100.0%; background:#E3E3E3;">
-    <tr>
-        <td align="center">
-            <table width="1000" bgcolor="#ffffff" cellpadding="0" cellspacing="0" style="width:750.0pt; background:white; border-collapse:collapse;">
-                
-                <tr><td bgcolor="#e2e2e2" height="15" style="background:#E2E2E2;">&nbsp;</td></tr>
+<table width="100%" bgcolor="#e3e3e3" cellpadding="0" cellspacing="0">
+<tr><td align="center">
 
-                <tr>
-                    <td style="padding:11.25pt 11.25pt 11.25pt 11.25pt;" align="right">
-                        <span style="font-size:8.0pt; font-family:\'Aptos\',sans-serif; color:black;">
-                            <em>If there are problems with how this message is displayed, click here to view it in a web browser</em>
-                        </span>
-                    </td>
-                </tr>
+<table width="1000" bgcolor="#ffffff" cellpadding="0" cellspacing="0">
 
-                <tr>
-                    <td align="center">
-                        <img src="' . $githubImg . rawurlencode('Header.jpg') . '" width="100%" style="display:block; border:0; width:100%;" alt="Header">
-                    </td>
-                </tr>
+<!-- TOP BAR -->
+<tr><td bgcolor="#e2e2e2" height="15">&nbsp;</td></tr>
 
-                <tr>
-                    <td style="padding:3.75pt 15.0pt 3.75pt 15.0pt; text-align:center;">
-                        <b style="font-size:25.0pt; color:#071952;">Feedback Received</b>
-                    </td>
-                </tr>
+<!-- VIEW IN BROWSER -->
+<tr>
+<td style="padding:15px; font-size:10.5px; line-height:12px;" align="right">
+<em>If there are problems with how this message is displayed, please view it in a browser.</em>
+</td>
+</tr>
 
-                <tr>
-                    <td style="padding:22.5pt 30.0pt 7.5pt 30.0pt; font-size:11pt; color:black;">
-                        <p>Dear ' . htmlspecialchars($builderName) . ',</p>
-                        <p>Your task has been reviewed by <strong>' . htmlspecialchars($reviewerName) . '</strong>. Please see the details below.</p>
-                        
-                        <p style="margin-top:15pt;">
-                            <strong style="font-size:14.0pt; color:#192F75;">' . htmlspecialchars($taskNameShort) . '</strong><br>
-                            <span style="color:#192F75;">PRID: <a href="#" style="color:#192F75; text-decoration:none;">' . htmlspecialchars($pr_id) . '</a></span>
-                        </p>
-                    </td>
-                </tr>
+<!-- HEADER IMAGE -->
+<tr>
+<td align="center">
+<img src="' . $githubImg . rawurlencode('Header.jpg') . '" width="100%" style="display:block; border:0; width:100%;" alt="Header">
+</td>
+</tr>
 
-                <tr>
+<tr><td height="20">&nbsp;</td></tr>
+
+<!-- TITLE -->
+<tr>
+<td style="color:#071952; font-size:25pt; font-weight:700; text-align:center;">
+Feedback Received
+</td>
+</tr>
+
+<!-- INTRO -->
+<tr>
+<td style="padding:30px 40px 10px 40px; font-size:12pt;">
+<p>Dear <strong>' . htmlspecialchars($builderName) . '</strong>,</p>
+<p>Your task has been reviewed by <strong>' . htmlspecialchars($reviewerName) . '</strong>.</p>
+
+<p style="margin-top:15pt;">
+ <strong style="font-size:14.0pt; color:#192F75;">' . htmlspecialchars($taskNameShort) . '</strong><br>
+<span style="color:#192F75;">PRID: <a href="#" style="color:#192F75; text-decoration:none;">' . htmlspecialchars($pr_id) . '</a></span>
+</p>
+</td>
+</tr>
+
+<!-- DIVIDER -->
+<tr>
                     <td style="padding:7.5pt 30.0pt 15.0pt 30.0pt;">
-                        <img src="https://eventsprguide.infinityfree.me/img/Divider.png" width="100%" style="display:block; width:100%;" alt="Divider">
+                        <img src="' . $githubImg . rawurlencode('Divider.png') . '" width="100%" style="display:block; width:100%;" alt="Divider">
                     </td>
                 </tr>
 
-                <tr>
-                    <td style="padding:0pt 30.0pt 15.0pt 30.0pt;">
-                        <table width="100%" cellpadding="0" cellspacing="0">';
+<tr>
+<td style="padding:20px 40px; font-size:12pt;">
+<table width="100%" cellpadding="0" cellspacing="0">';
 
 // ---------------------------
-// QUESTIONS LOOP (Styling Copy)
+// QUESTIONS LOOP
 // ---------------------------
 foreach ($questions as $qid => $qText) {
     $answerKey = 'q' . $qid;
@@ -155,77 +155,84 @@ foreach ($questions as $qid => $qText) {
 
     $emailBody .= '
     <tr>
-        <td style="padding-bottom:11.25pt;">
-            <table width="100%" bgcolor="#F1F4F9" cellpadding="15" cellspacing="0" style="background:#F1F4F9; border-radius:8px; border-collapse:collapse;">
-                <tr>
-                    <td>
-                        <table width="100%" cellpadding="0" cellspacing="0" style="font-size:11pt;">
-                            <tr><td width="15%" valign="top"><strong>Question:</strong></td><td width="85%">' . htmlspecialchars($qText) . '</td></tr>
-                            <tr><td valign="top"><strong>Answer:</strong></td><td>Applicable</td></tr>
-                            <tr><td valign="top"><strong>Fatality:</strong></td><td>' . $fatalityDisplay . '</td></tr>
-                            <tr><td valign="top"><strong>Remarks:</strong></td><td>' . htmlspecialchars($remarks) . '</td></tr>
-                        </table>';
+    <td style="padding-bottom:20px;">
+    <table width="100%" bgcolor="#f1f4f9" cellpadding="20" cellspacing="0" style="border-radius:8px;">
+        <tr><td><strong>Question:</strong> ' . htmlspecialchars($qText) . '</td></tr>
+        <tr><td><strong>Answer:</strong> Applicable</td></tr>
+        <tr><td><strong>Fatality:</strong> ' . $fatalityDisplay . '</td></tr>
+        <tr><td><strong>Remarks:</strong> ' . htmlspecialchars($remarks) . '</td></tr>';
 
-    // Image logic remains unchanged as requested
+    // ---------------------------
+    // IMAGES (Azure Blob)
+    // ---------------------------
     $qImages = $images[$answerKey] ?? [];
+
     if (!empty($qImages)) {
-        $emailBody .= '<table width="100%" cellpadding="5" cellspacing="0" style="margin-top:10pt;"><tr>';
+        $emailBody .= '<tr><td><table width="100%" cellpadding="5" cellspacing="0"><tr>';
         $count = 0;
+
         foreach ($qImages as $img) {
             $imgUrl = $azureBlobBase . rawurlencode($img);
+
             $emailBody .= '
             <td width="33%" align="center" valign="top">
-                <img src="' . $imgUrl . '" width="100%" style="display:block; border:0;" alt="Proof">
+                <img src="' . $imgUrl . '" width="100%" style="border-radius:6px; display:block; border:0; outline:none; text-decoration:none;" alt="PR Image">
             </td>';
+
             $count++;
-            if ($count % 3 === 0) { $emailBody .= '</tr><tr>'; }
+            if ($count % 3 === 0) {
+                $emailBody .= '</tr><tr>';
+            }
         }
-        $emailBody .= '</tr></table>';
+
+        $emailBody .= '</tr></table></td></tr>';
     } else {
-        $emailBody .= '<p style="color:blue; font-size:10pt; margin-top:10pt; font-family:Arial,sans-serif;">No images for this question.</p>';
+        $emailBody .= '<tr><td style="color:#555;">No images for this question.</td></tr>';
     }
 
-    $emailBody .= '</td></tr></table></td></tr>';
+    $emailBody .= '</table></td></tr>';
 }
 
 $emailBody .= '
-                        </table>
-                    </td>
-                </tr>
+</table>
+</td>
+</tr>
 
-                <tr>
-                    <td style="padding:7.5pt 30.0pt 7.5pt 30.0pt; font-size:11pt;">
-                        How would you like to proceed with this peer review?
-                    </td>
-                </tr>
+<!-- ACTION TEXT -->
+<tr>
+<td style="padding:10px 40px; font-size:12pt;">
+How would you like to proceed with this peer review?
+</td>
+</tr>
 
-                <tr>
-                    <td style="padding:0in 0in 15.0pt 0in;">
-                        <table width="100%" cellpadding="0" cellspacing="0">
-                            <tr>
-                                <td width="15%"></td>
-                                <td width="30%" align="center" bgcolor="#28A745" style="background:#28A745; padding:5pt;">
-                                    <a href="https://eventsprguide.azurewebsites.net/accept_review.php?pr_id=' . urlencode($pr_id) . '" style="color:white; text-decoration:none; font-weight:bold; display:block;">Accept</a>
-                                </td>
-                                <td width="10%"></td>
-                                <td width="30%" align="center" bgcolor="#DC3545" style="background:#DC3545; padding:5pt;">
-                                    <a href="https://eventsprguide.azurewebsites.net/appeal_review.php?pr_id=' . urlencode($pr_id) . '" style="color:white; text-decoration:none; font-weight:bold; display:block;">Appeal</a>
-                                </td>
-                                <td width="15%"></td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
+<!-- BUTTONS -->
+<tr>
+<td align="center" style="padding:20px;">
+<table width="100%" cellpadding="0" cellspacing="0">
+<tr>
+<td width="15%"></td>
+<td width="30%" align="center" bgcolor="#28a745" style="padding:10px; border-radius:6px;">
+<a href="https://eventsprguide.azurewebsites.net/accept_review.php?pr_id=' . urlencode($pr_id) . '" style="color:#fff; text-decoration:none; display:block;">Accept</a>
+</td>
+<td width="10%"></td>
+<td width="30%" align="center" bgcolor="#dc3545" style="padding:10px; border-radius:6px;">
+<a href="https://eventsprguide.azurewebsites.net/appeal_review.php?pr_id=' . urlencode($pr_id) . '" style="color:#fff; text-decoration:none; display:block;">Appeal</a>
+</td>
+<td width="15%"></td>
+</tr>
+</table>
+</td>
+</tr>
 
-                <tr>
+<!-- FOOTER -->
+<tr>
                     <td>
-                        <img src="https://eventsprguide.infinityfree.me/img/Footer.png" width="100%" style="display:block; width:100%;" alt="Footer">
+                        <img src="' . $githubImg . rawurlencode('Footer.png') . '" width="100%" style="display:block; width:100%;" alt="Footer">
                     </td>
                 </tr>
 
-            </table>
-        </td>
-    </tr>
+</table>
+</td></tr>
 </table>
 
 </body></html>';
