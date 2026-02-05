@@ -97,7 +97,7 @@ $emailBody = '<html><head><meta charset="UTF-8"></head>
 <!-- HEADER IMAGE -->
 <tr>
 <td align="center">
-<img src="' . $githubUploadsBase . '691d19c2d7a10_Email%20%E2%80%93%20Banner%20(OFT-Field)_640x120_DesignOnly.png" width="100%" alt="Header">
+<img src="' . $azureBlobBase . '691d19c2d7a10_Email%20%E2%80%93%20Banner%20(OFT-Field)_640x120_DesignOnly.png" width="100%" alt="Header">
 </td>
 </tr>
 
