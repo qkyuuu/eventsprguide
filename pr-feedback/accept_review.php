@@ -142,7 +142,7 @@ if ($pr_id) {
 <div class="container">
     <h2><?= htmlspecialchars($message) ?></h2>
     <?php if ($pr_id): ?>
-        <p><a href="https://eventsprguide.azurewebsites.net/pr-feedback/pr_feedback.php?pr_id=<?= urlencode($pr_id) ?>">View your feedback</a></p>
+        <p><a href="https://eventsprguide-fxgqhpcsgeamcyh7.southeastasia-01.azurewebsites.net/pr-feedback/pr_feedback.php?pr_id=<?= urlencode($pr_id) ?>">View your feedback</a></p>
     <?php endif; ?>
     <div class="footer">&copy; 2025 Peer Review Platform. All rights reserved.</div>
 </div>
