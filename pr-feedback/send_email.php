@@ -70,8 +70,9 @@ $reviewerName  = ucwords(strtolower($feedback['peer_reviewer_name'] ?? 'Reviewer
 $taskName      = $feedback['task_name'] ?? 'Task';
 $taskNameShort = mb_strimwidth($taskName, 0, 60, '...');
 
-// ✅ GitHub RAW base path (THIS FIXES IMAGES)
+// GitHub RAW base path (for static images)
 $githubImg = 'https://raw.githubusercontent.com/qkyuuu/eventsprguide/main/img/';
+// Azure Blob base path (for uploaded PR images)
 $azureBlobBase = 'https://eventsprimagestore.blob.core.windows.net/pr-images/';
 
 // ---------------------------
@@ -86,11 +87,11 @@ $emailBody = '<html><head><meta charset="UTF-8"></head>
 <table width="1000" bgcolor="#ffffff" cellpadding="0" cellspacing="0">
 
 <!-- TOP BAR -->
-<tr><td bgcolor="#e2e2e2" height="15"></td></tr>
+<tr><td bgcolor="#e2e2e2" height="15">&nbsp;</td></tr>
 
 <!-- VIEW IN BROWSER -->
 <tr>
-<td style="padding:15px; font-size:10.5px" align="right">
+<td style="padding:15px; font-size:10.5px; line-height:12px;" align="right">
 <em>If there are problems with how this message is displayed, please view it in a browser.</em>
 </td>
 </tr>
@@ -98,11 +99,11 @@ $emailBody = '<html><head><meta charset="UTF-8"></head>
 <!-- HEADER IMAGE -->
 <tr>
 <td align="center">
-<img src="' . $githubImg . '691d19c2d7a10_Email%20%E2%80%93%20Banner%20(OFT-Field)_640x120_DesignOnly.png" width="100%" alt="Header">
+<img src="' . $githubImg . rawurlencode('691d19c2d7a10_Email – Banner (OFT-Field)_640x120_DesignOnly.png') . '" width="100%" style="display:block; border:0; outline:none; text-decoration:none;" alt="Header">
 </td>
 </tr>
 
-<tr><td height="20"></td></tr>
+<tr><td height="20">&nbsp;</td></tr>
 
 <!-- TITLE -->
 <tr>
@@ -133,12 +134,11 @@ Feedback Received
 
 <tr>
 <td style="padding:20px 40px; font-size:12pt;">
-
 <table width="100%" cellpadding="0" cellspacing="0">';
 
-/* ---------------------------
-   QUESTIONS LOOP
----------------------------- */
+// ---------------------------
+// QUESTIONS LOOP
+// ---------------------------
 foreach ($questions as $qid => $qText) {
     $answerKey = 'q' . $qid;
 
@@ -162,21 +162,21 @@ foreach ($questions as $qid => $qText) {
         <tr><td><strong>Fatality:</strong> ' . $fatalityDisplay . '</td></tr>
         <tr><td><strong>Remarks:</strong> ' . htmlspecialchars($remarks) . '</td></tr>';
 
-    /* ---------------------------
-       IMAGES (GitHub)
-    ---------------------------- */
+    // ---------------------------
+    // IMAGES (Azure Blob)
+    // ---------------------------
     $qImages = $images[$answerKey] ?? [];
 
     if (!empty($qImages)) {
-        $emailBody .= '<tr><td><table width="100%" cellpadding="5"><tr>';
+        $emailBody .= '<tr><td><table width="100%" cellpadding="5" cellspacing="0"><tr>';
         $count = 0;
 
         foreach ($qImages as $img) {
             $imgUrl = $azureBlobBase . rawurlencode($img);
 
             $emailBody .= '
-            <td width="33%" align="center">
-                <img src="' . $imgUrl . '" width="100%" style="border-radius:6px;">
+            <td width="33%" align="center" valign="top">
+                <img src="' . $imgUrl . '" width="100%" style="border-radius:6px; display:block; border:0; outline:none; text-decoration:none;" alt="PR Image">
             </td>';
 
             $count++;
@@ -203,30 +203,31 @@ $emailBody .= '
 <td style="padding:10px 40px; font-size:12pt;">
 How would you like to proceed with this peer review?
 </td>
-</tr>';
+</tr>
 
-/* ---------------------------
-   BUTTONS
----------------------------- */
-$acceptUrl = 'https://eventsprguide.azurewebsites.net/accept_review.php?pr_id=' . urlencode($pr_id);
-$appealUrl = 'https://eventsprguide.azurewebsites.net/appeal_review.php?pr_id=' . urlencode($pr_id);
-
-$emailBody .= '
+<!-- BUTTONS -->
 <tr>
 <td align="center" style="padding:20px;">
 <table width="100%" cellpadding="0" cellspacing="0">
 <tr>
 <td width="15%"></td>
-<td width="30%" align="center" bgcolor="#28a745" style="padding:10px;">
-<a href="' . $acceptUrl . '" style="color:#fff; text-decoration:none;">Accept</a>
+<td width="30%" align="center" bgcolor="#28a745" style="padding:10px; border-radius:6px;">
+<a href="https://eventsprguide.azurewebsites.net/accept_review.php?pr_id=' . urlencode($pr_id) . '" style="color:#fff; text-decoration:none; display:block;">Accept</a>
 </td>
 <td width="10%"></td>
-<td width="30%" align="center" bgcolor="#dc3545" style="padding:10px;">
-<a href="' . $appealUrl . '" style="color:#fff; text-decoration:none;">Appeal</a>
+<td width="30%" align="center" bgcolor="#dc3545" style="padding:10px; border-radius:6px;">
+<a href="https://eventsprguide.azurewebsites.net/appeal_review.php?pr_id=' . urlencode($pr_id) . '" style="color:#fff; text-decoration:none; display:block;">Appeal</a>
 </td>
 <td width="15%"></td>
 </tr>
 </table>
+</td>
+</tr>
+
+<!-- FOOTER -->
+<tr>
+<td bgcolor="#e2e2e2" style="padding:20px; text-align:center; font-size:10pt; color:#555;">
+&copy; 2026 Events PR Guide. All rights reserved.
 </td>
 </tr>
 
@@ -235,7 +236,6 @@ $emailBody .= '
 </table>
 
 </body></html>';
-
 
 // ---------------------------
 // 9. Trigger Power Automate Flow
