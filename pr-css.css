@@ -127,7 +127,7 @@ body {
   justify-content: space-between;
   align-items: flex-start;
   padding: 10px 0;
-  border-bottom: 1px solid #f0f0f0;
+  border-top: 2px solid #f0f0f0;
 }
 
 .question {
@@ -155,10 +155,9 @@ body {
 /* Options & Radio Buttons */
 .options {
   display: flex;
-  padding: 15px 0;
+  padding: 10px;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 2px solid #f2f2f2;
 }
 
 .na-options {
@@ -194,7 +193,7 @@ body {
 /* Proof & Remarks (Floating Label Style) */
 .proof-remarks {
   display: none;
-  margin-top: 15px;
+  margin-bottom: 15px;
   padding: 20px;
   background-color: #fafafa;
   border-radius: 8px;
