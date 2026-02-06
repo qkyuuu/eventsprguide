@@ -157,7 +157,7 @@ foreach ($questions as $qid => $qText) {
     <tr>
     <td style="padding-bottom:20px;">
     <table width="100%" bgcolor="#f1f4f9" cellpadding="20" cellspacing="0" style="border-radius:8px;">
-        <tr><td style="padding:5px 10px !important; margin:0;"><strong>Question:</strong> ' . htmlspecialchars($qText) . '</td></tr>
+        <tr><td style="padding:15px 10px 5px 10px !important; margin:0;"><strong>Question:</strong> ' . htmlspecialchars($qText) . '</td></tr>
         <tr><td style="padding:5px 10px !important; margin:0;"><strong>Answer:</strong> Applicable</td></tr>
         <tr><td style="padding:5px 10px !important; margin:0;"><strong>Fatality:</strong> ' . $fatalityDisplay . '</td></tr>
         <tr><td style="padding:5px 10px !important; margin:0;"><strong>Remarks:</strong> ' . htmlspecialchars($remarks) . '</td></tr>';
