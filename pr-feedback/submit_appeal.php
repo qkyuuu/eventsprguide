@@ -45,25 +45,31 @@ if (!$pr_id) {
 }
 
 // ---------------------------
-// 4. GET BUILDER EMAIL FROM pr_submissions
+// 4. GET INTERNAL SUBMISSION ID
 // ---------------------------
-$sql_email = "SELECT builder_email FROM pr_submissions WHERE pr_id = ?";
-$stmt_email = sqlsrv_query($conn, $sql_email, [$pr_id]);
-$row = sqlsrv_fetch_array($stmt_email, SQLSRV_FETCH_ASSOC);
+// Your pr_appeals table uses submission_id (int), which refers to the 'id' column of pr_submissions.
+$sql_sub = "SELECT id FROM pr_submissions WHERE pr_id = ?";
+$stmt_sub = sqlsrv_query($conn, $sql_sub, [$pr_id]);
+$sub_row = sqlsrv_fetch_array($stmt_sub, SQLSRV_FETCH_ASSOC);
 
-if (!$row) {
-    die("PR Submission not found.");
+if (!$sub_row) {
+    die("Error: PR Submission not found in the database.");
 }
-$builder_email = $row['builder_email'];
+$internal_submission_id = $sub_row['id'];
 
 // ---------------------------
 // 5. INSERT INTO pr_appeals
 // ---------------------------
-// Using OUTPUT INSERTED to get the auto-increment ID in Azure SQL
-$sql_appeal = "INSERT INTO pr_appeals (pr_id, builder_email) OUTPUT INSERTED.appeal_id VALUES (?, ?)";
-$stmt_appeal = sqlsrv_query($conn, $sql_appeal, [$pr_id, $builder_email]);
+// Mapping to your schema: 'submission_id' and 'reason'
+$sql_appeal = "INSERT INTO pr_appeals (submission_id, reason) OUTPUT INSERTED.id VALUES (?, ?)";
+$stmt_appeal = sqlsrv_query($conn, $sql_appeal, [$internal_submission_id, 'Appeal submitted by builder']);
+
+if ($stmt_appeal === false) {
+    die(print_r(sqlsrv_errors(), true));
+}
+
 $appeal_row = sqlsrv_fetch_array($stmt_appeal, SQLSRV_FETCH_ASSOC);
-$appeal_id = $appeal_row['appeal_id'];
+$appeal_id = $appeal_row['id']; 
 
 // ---------------------------
 // 6. LOOP THROUGH ITEMS & UPLOAD TO BLOB
@@ -96,16 +102,18 @@ foreach ($builder_answers as $qid => $answer) {
     $images_json = json_encode($uploadedFiles);
 
     // 6b. INSERT INTO pr_appeal_items
+    // Mapping form 'explanation' to schema 'remarks'
+    // Note: Ensure you ran the ALTER TABLE commands to add 'builder_answer' and 'image_paths'
     $sql_item = "INSERT INTO pr_appeal_items 
-                 (appeal_id, question_id, builder_answer, explanation, image_paths) 
+                 (appeal_id, question_id, remarks, builder_answer, image_paths) 
                  VALUES (?, ?, ?, ?, ?)";
     
     $params_item = [
         $appeal_id,
         $qid,
-        $answer,
-        $explanation,
-        $images_json
+        $explanation, 
+        $answer,      
+        $images_json  
     ];
 
     $stmt_item = sqlsrv_query($conn, $sql_item, $params_item);
@@ -119,7 +127,7 @@ foreach ($builder_answers as $qid => $answer) {
 // ---------------------------
 sqlsrv_close($conn);
 
-// Update this URL to your actual Azure Website URL
+// Trigger Email Notification
 $sendEmailUrl = "https://eventsprguide-fxgqhpcsgeamcyh7.southeastasia-01.azurewebsites.net/pr-feedback/send_appeal_email.php?pr_id=" . urlencode($pr_id);
 @file_get_contents($sendEmailUrl);
 
