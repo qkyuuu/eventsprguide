@@ -3,7 +3,7 @@ ob_start(); // Start output buffering
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '../vendor/autoload.php';
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 
 // ---------------------------
