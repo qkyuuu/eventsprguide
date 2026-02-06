@@ -103,7 +103,7 @@ if ($appeal_query !== false) {
 <?php if (!$pr_id): ?>
 <!-- Filter and Search Buttons -->
 <div class="button-header">
-  <a href="https://eventsprguide-fxgqhpcsgeamcyh7.southeastasia-01.azurewebsites.net/index.html" class="btn btn-secondary mb-4">Back to PR Guidek</a>
+  <a href="https://eventsprguide-fxgqhpcsgeamcyh7.southeastasia-01.azurewebsites.net/index.html" class="btn btn-secondary mb-4">Back to PR Guide</a>
   <div class="btn-head-div">
     <button id="toggleFilterBtn" type="button" class="btn btn-outline-secondary mb-3">
     <i class="bi bi-filter"></i> Filters
