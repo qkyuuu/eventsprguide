@@ -1,136 +1,127 @@
 <?php
-ob_start(); 
+    
+ ob_start(); // Start output buffering   
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Load Azure SDK
-require_once __DIR__ . '/../vendor/autoload.php';
-use MicrosoftAzure\Storage\Blob\BlobRestProxy;
+// InfinityFree database connection
+$host = "sql103.infinityfree.com";
+$username = "if0_40271114";
+$password = "QdO20m5hR4JbOHe";
+$dbname = "if0_40271114_peer_review_db";
 
-// ---------------------------
-// 1. Azure SQL Connection
-// ---------------------------
-$connectionOptions = [
-    "Database" => "events-pr-db",
-    "Uid"      => "qmsadmin",
-    "PWD"      => "Codegenqms!",
-    "Encrypt"  => true
-];
-$serverName = "tcp:qms-server.database.windows.net,1433";
-$conn = sqlsrv_connect($serverName, $connectionOptions);
-
-if (!$conn) {
-    die(print_r(sqlsrv_errors(), true));
+$mysqli = new mysqli($host, $username, $password, $dbname);
+if ($mysqli->connect_error) {
+    die("Connection failed: " . $mysqli->connect_error);
 }
 
-// ---------------------------
-// 2. Azure Blob Connection
-// ---------------------------
-$accountName = getenv('AZURE_STORAGE_ACCOUNT');
-$accountKey  = getenv('AZURE_STORAGE_KEY');
-$container   = getenv('AZURE_STORAGE_CONTAINER');
-
-$connectionString = "DefaultEndpointsProtocol=https;AccountName=$accountName;AccountKey=$accountKey";
-$blobClient = BlobRestProxy::createBlobService($connectionString);
-
-// ---------------------------
-// 3. GET POST DATA
-// ---------------------------
+//
+// 1. GET POST DATA
+//
 $pr_id = $_POST['pr_id'] ?? null;
 $builder_answers = $_POST['builder_answer'] ?? [];
 $explanations = $_POST['explanation'] ?? [];
+$builder_email = ""; // We fetch it from pr_submissions
 
+//
+// 2. VALIDATE PR_ID
+//
 if (!$pr_id) {
     die("Invalid PR ID.");
 }
 
-// ---------------------------
-// 4. GET INTERNAL SUBMISSION ID
-// ---------------------------
-// Your pr_appeals table uses submission_id (int), which refers to the 'id' column of pr_submissions.
-$sql_sub = "SELECT id FROM pr_submissions WHERE pr_id = ?";
-$stmt_sub = sqlsrv_query($conn, $sql_sub, [$pr_id]);
-$sub_row = sqlsrv_fetch_array($stmt_sub, SQLSRV_FETCH_ASSOC);
+//
+// 3. GET BUILDER EMAIL FROM pr_submissions
+//
+$stmt = $mysqli->prepare("SELECT builder_email FROM pr_submissions WHERE pr_id = ?");
+$stmt->bind_param("s", $pr_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$row = $result->fetch_assoc();
+$stmt->close();
 
-if (!$sub_row) {
-    die("Error: PR Submission not found in the database.");
-}
-$internal_submission_id = $sub_row['id'];
-
-// ---------------------------
-// 5. INSERT INTO pr_appeals
-// ---------------------------
-// Mapping to your schema: 'submission_id' and 'reason'
-$sql_appeal = "INSERT INTO pr_appeals (submission_id, reason) OUTPUT INSERTED.id VALUES (?, ?)";
-$stmt_appeal = sqlsrv_query($conn, $sql_appeal, [$internal_submission_id, 'Appeal submitted by builder']);
-
-if ($stmt_appeal === false) {
-    die(print_r(sqlsrv_errors(), true));
+if (!$row) {
+    die("PR Submission not found.");
 }
 
-$appeal_row = sqlsrv_fetch_array($stmt_appeal, SQLSRV_FETCH_ASSOC);
-$appeal_id = $appeal_row['id']; 
+$builder_email = $row['builder_email'];
 
-// ---------------------------
-// 6. LOOP THROUGH ITEMS & UPLOAD TO BLOB
-// ---------------------------
+//
+// 4. INSERT INTO pr_appeals (one row per appeal)
+//
+$stmt = $mysqli->prepare("
+    INSERT INTO pr_appeals (pr_id, builder_email)
+    VALUES (?, ?)
+");
+$stmt->bind_param("ss", $pr_id, $builder_email);
+$stmt->execute();
+$appeal_id = $stmt->insert_id;  // <-- IMPORTANT
+$stmt->close();
+
+//
+// 5. LOOP THROUGH EACH QUESTION ANSWER AND SAVE INTO pr_appeal_items
+//
 foreach ($builder_answers as $qid => $answer) {
+
     $explanation = $explanations[$qid] ?? "";
+
+    //
+    // 5a. HANDLE IMAGE UPLOADS
+    //
     $uploadedFiles = [];
 
-    // Handle Image Uploads for this Question
-    if (isset($_FILES['builder_images']['name'][$qid]) && !empty($_FILES['builder_images']['name'][$qid][0])) {
-        
+    if (isset($_FILES['builder_images']['name'][$qid]) &&
+        !empty($_FILES['builder_images']['name'][$qid][0])) {
+
         foreach ($_FILES['builder_images']['name'][$qid] as $idx => $origName) {
-            if ($_FILES['builder_images']['error'][$qid][$idx] === UPLOAD_ERR_OK) {
-                
-                $tmpName = $_FILES['builder_images']['tmp_name'][$qid][$idx];
-                $ext = pathinfo($origName, PATHINFO_EXTENSION);
 
-                // Naming logic: adds "appeals/" prefix for virtual folder organization
-                $blobName = "appeals/appeal_{$pr_id}_Q{$qid}_" . uniqid() . "." . $ext;
+            $tmpName = $_FILES['builder_images']['tmp_name'][$qid][$idx];
+            $ext = pathinfo($origName, PATHINFO_EXTENSION);
 
-                // Upload to Azure Blob Storage
-                $content = fopen($tmpName, 'r');
-                $blobClient->createBlockBlob($container, $blobName, $content);
-                
-                $uploadedFiles[] = $blobName;
+            // Safe unique filename
+            $newName = "appeal_{$pr_id}_Q{$qid}_" . time() . "_{$idx}." . $ext;
+
+            // Move to uploads
+            if (move_uploaded_file($tmpName, "../uploads/" . $newName)) {
+                $uploadedFiles[] = $newName;
             }
         }
     }
 
     $images_json = json_encode($uploadedFiles);
 
-    // 6b. INSERT INTO pr_appeal_items
-    // Mapping form 'explanation' to schema 'remarks'
-    // Note: Ensure you ran the ALTER TABLE commands to add 'builder_answer' and 'image_paths'
-    $sql_item = "INSERT INTO pr_appeal_items 
-                 (appeal_id, question_id, remarks, builder_answer, image_paths) 
-                 VALUES (?, ?, ?, ?, ?)";
-    
-    $params_item = [
+    //
+    // 5b. INSERT INTO pr_appeal_items
+    //
+    $stmt = $mysqli->prepare("
+        INSERT INTO pr_appeal_items 
+        (appeal_id, question_id, builder_answer, explanation, image_paths)
+        VALUES (?, ?, ?, ?, ?)
+    ");
+
+    $stmt->bind_param("iisss",
         $appeal_id,
         $qid,
-        $explanation, 
-        $answer,      
-        $images_json  
-    ];
+        $answer,
+        $explanation,
+        $images_json
+    );
 
-    $stmt_item = sqlsrv_query($conn, $sql_item, $params_item);
-    if ($stmt_item === false) {
-        die(print_r(sqlsrv_errors(), true));
-    }
+    $stmt->execute();
+    $stmt->close();
 }
 
-// ---------------------------
-// 7. FINISH & REDIRECT
-// ---------------------------
-sqlsrv_close($conn);
+//
+// 6. FINISH
+//
+$mysqli->close();
 
-// Trigger Email Notification
-$sendEmailUrl = "https://eventsprguide-fxgqhpcsgeamcyh7.southeastasia-01.azurewebsites.net/pr-feedback/send_appeal_email.php?pr_id=" . urlencode($pr_id);
+// Optionally send email
+$sendEmailUrl = "https://eventsprguide.infinityfree.me/pr-feedback/send_appeal_email.php?pr_id=" . urlencode($pr_id);
 @file_get_contents($sendEmailUrl);
 
-header("Location: pr_feedback.php?pr_id=" . urlencode($pr_id) . "&appeal_submitted=true");
+// Force redirect to feedback page
+header("Location: pr_feedback.php?pr_id=" . urlencode($pr_id));
 exit;
+
 ?>
