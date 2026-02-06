@@ -19,10 +19,8 @@ $connectionOptions = [
 
 $serverName = "tcp:qms-server.database.windows.net,1433";
 $conn = sqlsrv_connect($serverName, $connectionOptions);
-
 if (!$conn) {
-    $errors = sqlsrv_errors();
-    die("Connection failed: " . print_r($errors, true));
+    die("Connection failed: " . print_r(sqlsrv_errors(), true));
 }
 
 // ---------------------------
@@ -38,92 +36,57 @@ $blobClient = BlobRestProxy::createBlobService($connectionString);
 // ---------------------------
 // 3. Get POST data
 // ---------------------------
-$pr_id = $_POST['pr_id'] ?? null;
+$submission_id = $_POST['pr_id'] ?? null;
 $builder_answers = $_POST['builder_answer'] ?? [];
 $explanations = $_POST['explanation'] ?? [];
-$builder_email = ""; // will fetch from pr_submissions
 
 // ---------------------------
-// 4. Validate PR ID
+// 4. Validate submission ID
 // ---------------------------
-if (!$pr_id) {
+if (!$submission_id) {
     die("Invalid PR ID.");
 }
 
 // ---------------------------
 // 5. Check if PR already appealed
 // ---------------------------
-$sql = "SELECT appeal_id FROM pr_appeals WHERE pr_id = ?";
-$params = [$pr_id];
+$sql = "SELECT id FROM pr_appeals WHERE submission_id = ?";
+$params = [$submission_id];
 $stmt = sqlsrv_prepare($conn, $sql, $params);
-if (!$stmt) {
-    die("Prepare failed: " . print_r(sqlsrv_errors(), true));
-}
-if (!sqlsrv_execute($stmt)) {
-    die("Execute failed: " . print_r(sqlsrv_errors(), true));
-}
+if (!$stmt) die("Prepare failed: " . print_r(sqlsrv_errors(), true));
+if (!sqlsrv_execute($stmt)) die("Execute failed: " . print_r(sqlsrv_errors(), true));
 
 if (sqlsrv_has_rows($stmt)) {
     die("This PR has already been appealed.");
 }
 
 // ---------------------------
-// 6. Get builder email from pr_submissions
+// 6. Insert into pr_appeals
 // ---------------------------
-$sql = "SELECT builder_email FROM pr_submissions WHERE pr_id = ?";
-$params = [$pr_id];
+// We'll put a default reason "Appeal submitted"
+$sql = "INSERT INTO pr_appeals (submission_id, reason, created_at) VALUES (?, ?, GETDATE())";
+$params = [$submission_id, 'Appeal submitted'];
 $stmt = sqlsrv_prepare($conn, $sql, $params);
-if (!$stmt) {
-    die("Prepare failed: " . print_r(sqlsrv_errors(), true));
-}
-if (!sqlsrv_execute($stmt)) {
-    die("Execute failed: " . print_r(sqlsrv_errors(), true));
-}
-$row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+if (!$stmt) die("Prepare failed (pr_appeals): " . print_r(sqlsrv_errors(), true));
+if (!sqlsrv_execute($stmt)) die("Execute failed (pr_appeals): " . print_r(sqlsrv_errors(), true));
 
-if (!$row) {
-    die("PR Submission not found.");
-}
-$builder_email = $row['builder_email'];
-
-// ---------------------------
-// 7. Insert into pr_appeals
-// ---------------------------
-$sql = "INSERT INTO pr_appeals (pr_id, builder_email) VALUES (?, ?)";
-$params = [$pr_id, $builder_email];
-$stmt = sqlsrv_prepare($conn, $sql, $params);
-if (!$stmt) {
-    die("Prepare failed: " . print_r(sqlsrv_errors(), true));
-}
-if (!sqlsrv_execute($stmt)) {
-    die("Execute failed: " . print_r(sqlsrv_errors(), true));
-}
-
-// Confirm appeal insert
+// Get the new appeal ID
 $appeal_id_stmt = sqlsrv_query($conn, "SELECT SCOPE_IDENTITY() AS id");
-if (!$appeal_id_stmt) {
-    die("Failed to get appeal ID: " . print_r(sqlsrv_errors(), true));
-}
 $appeal_row = sqlsrv_fetch_array($appeal_id_stmt, SQLSRV_FETCH_ASSOC);
 $appeal_id = $appeal_row['id'] ?? null;
-
-if (!$appeal_id) {
-    die("Could not retrieve newly inserted appeal ID.");
-}
+if (!$appeal_id) die("Could not retrieve newly inserted appeal ID.");
 
 // ---------------------------
-// 8. Loop through each question
+// 7. Loop through each question
 // ---------------------------
 foreach ($builder_answers as $qid => $answer) {
     $explanation = $explanations[$qid] ?? "";
 
     // Only save if builder disagrees (Not Applicable)
-    if (strtolower($answer) !== "not applicable") {
-        continue;
-    }
+    if (strtolower($answer) !== "not applicable") continue;
 
     // ---------------------------
-    // 8a. Handle appeal image uploads to Azure Blob
+    // 7a. Handle appeal image uploads to Azure Blob
     // ---------------------------
     $uploadedFiles = [];
 
@@ -131,17 +94,13 @@ foreach ($builder_answers as $qid => $answer) {
         !empty($_FILES['builder_images']['name'][$qid][0])) {
 
         foreach ($_FILES['builder_images']['name'][$qid] as $idx => $origName) {
-
             $tmpName = $_FILES['builder_images']['tmp_name'][$qid][$idx];
             $ext = pathinfo($origName, PATHINFO_EXTENSION);
 
-            // Optional: only allow images
             $allowed = ['jpg','jpeg','png','webp'];
             if (!in_array(strtolower($ext), $allowed)) continue;
 
-            // Distinct Azure path for appeal images
             $blobName = "appeal/q{$qid}/" . uniqid() . "_" . basename($origName);
-
             $content = fopen($tmpName, 'r');
 
             try {
@@ -156,34 +115,29 @@ foreach ($builder_answers as $qid => $answer) {
     $images_json = json_encode($uploadedFiles);
 
     // ---------------------------
-    // 8b. Insert into pr_appeal_items
+    // 7b. Insert into pr_appeal_items (match your DB)
     // ---------------------------
-    $sql = "INSERT INTO pr_appeal_items (appeal_id, question_id, builder_answer, explanation, image_paths)
-            VALUES (?, ?, ?, ?, ?)";
-    $params = [$appeal_id, $qid, $answer, $explanation, $images_json];
+    $sql = "INSERT INTO pr_appeal_items (appeal_id, question_id, remarks) VALUES (?, ?, ?)";
+    $params = [$appeal_id, $qid, $explanation]; // we store explanation in remarks
     $stmt = sqlsrv_prepare($conn, $sql, $params);
-    if (!$stmt) {
-        die("Prepare failed (pr_appeal_items): " . print_r(sqlsrv_errors(), true));
-    }
-    if (!sqlsrv_execute($stmt)) {
-        die("Execute failed (pr_appeal_items): " . print_r(sqlsrv_errors(), true));
-    }
+    if (!$stmt) die("Prepare failed (pr_appeal_items): " . print_r(sqlsrv_errors(), true));
+    if (!sqlsrv_execute($stmt)) die("Execute failed (pr_appeal_items): " . print_r(sqlsrv_errors(), true));
 }
 
 // ---------------------------
-// 9. Close connection
+// 8. Close connection
 // ---------------------------
 sqlsrv_close($conn);
 
 // ---------------------------
-// 10. Optionally send email notification
+// 9. Optionally send email notification
 // ---------------------------
-$sendEmailUrl = "https://eventsprguide.infinityfree.me/pr-feedback/send_appeal_email.php?pr_id=" . urlencode($pr_id);
+$sendEmailUrl = "https://eventsprguide.infinityfree.me/pr-feedback/send_appeal_email.php?pr_id=" . urlencode($submission_id);
 @file_get_contents($sendEmailUrl);
 
 // ---------------------------
-// 11. Redirect back to feedback page
+// 10. Redirect back to feedback page
 // ---------------------------
-header("Location: pr_feedback.php?pr_id=" . urlencode($pr_id));
+header("Location: pr_feedback.php?pr_id=" . urlencode($submission_id));
 exit;
 ?>
