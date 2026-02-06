@@ -67,7 +67,7 @@ $azureBlobBase = 'https://eventsprimagestore.blob.core.windows.net/pr-images/';
         <p><strong><?= htmlspecialchars($feedback['pr_id']) ?></strong></p>
         <p><strong>Peer Reviewer:</strong> <?= htmlspecialchars(ucwords(strtolower($feedback['peer_reviewer_name']))) ?> (<?= htmlspecialchars($feedback['peer_reviewer_email']) ?>)</p>
         <p><strong>Builder:</strong> <?= htmlspecialchars(ucwords(strtolower($feedback['builder_name']))) ?> (<?= htmlspecialchars($feedback['builder_email']) ?>)</p>
-        <p><strong>Date:</strong> <?= $feedback['submission_date'] instanceof DateTime ? $feedback['submission_date']->format('Y-m-d H:i') : htmlspecialchars($feedback['submission_date']) ?></p>
+        <p><strong>Date:</strong> <?= htmlspecialchars($feedback['created_at']->format('Y-m-d H:i:s')) ?></p>
     </div>
 
     <h4>Feedback</h4>
