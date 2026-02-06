@@ -1,56 +1,99 @@
 <?php
-// Enable error reporting (for debugging; disable in production)
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// InfinityFree database connection
-$host = "sql103.infinityfree.com";
-$username = "if0_40271114";
-$password = "QdO20m5hR4JbOHe";
-$dbname = "if0_40271114_peer_review_db";
+require_once __DIR__ . '/vendor/autoload.php';
+use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 
-$mysqli = new mysqli($host, $username, $password, $dbname);
-if ($mysqli->connect_error) {
-    die("Connection failed: " . $mysqli->connect_error);
+// ---------------------------
+// 1. Azure SQL Connection
+// ---------------------------
+$connectionOptions = [
+    "Database" => "events-pr-db",
+    "Uid"      => "qmsadmin",
+    "PWD"      => "Codegenqms!",
+    "Encrypt"  => true,
+    "LoginTimeout" => 60
+];
+$serverName = "tcp:qms-server.database.windows.net,1433";
+$conn = sqlsrv_connect($serverName, $connectionOptions);
+
+if (!$conn) {
+    die(print_r(sqlsrv_errors(), true));
 }
 
-// Get PRID from URL
+// ---------------------------
+// 2. Azure Blob config
+// ---------------------------
+$accountName = getenv('AZURE_STORAGE_ACCOUNT');
+$accountKey  = getenv('AZURE_STORAGE_KEY');
+$container   = getenv('AZURE_STORAGE_CONTAINER');
+
+$connectionString = "DefaultEndpointsProtocol=https;AccountName=$accountName;AccountKey=$accountKey";
+$blobClient = BlobRestProxy::createBlobService($connectionString);
+
+// ---------------------------
+// 3. Get PR ID
+// ---------------------------
 $pr_id = $_GET['pr_id'] ?? null;
-
-// Fetch data
-if ($pr_id) {
-    $stmt = $mysqli->prepare("SELECT * FROM pr_submissions WHERE pr_id = ?");
-    $stmt->bind_param("s", $pr_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $feedback = $result->fetch_assoc();
-    $stmt->close();
-
-    $answers = !empty($feedback['answers']) ? json_decode($feedback['answers'], true) : [];
-    $questions_result = $mysqli->query("SELECT * FROM questions");
-} else {
-    echo "Invalid PRID.";
-    exit;
+if (!$pr_id) {
+    die("Invalid PRID.");
 }
 
-$mysqli->close();
+// ---------------------------
+// 4. Fetch PR submission
+// ---------------------------
+$sql = "SELECT * FROM pr_submissions WHERE pr_id = ?";
+$params = [$pr_id];
+$stmt = sqlsrv_prepare($conn, $sql, $params);
+sqlsrv_execute($stmt);
+$feedback = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+
+// ---------------------------
+// 5. Fetch questions
+// ---------------------------
+$questions = [];
+$questions_stmt = sqlsrv_query($conn, "SELECT * FROM questions");
+while ($row = sqlsrv_fetch_array($questions_stmt, SQLSRV_FETCH_ASSOC)) {
+    $questions[] = $row;
+}
+
+// ---------------------------
+// 6. Fetch appeal items (if any)
+// ---------------------------
+$appealItems = [];
+$appeal_sql = "SELECT * FROM pr_appeal_items WHERE appeal_id IN 
+    (SELECT appeal_id FROM pr_appeals WHERE pr_id = ?)";
+$appeal_stmt = sqlsrv_prepare($conn, $appeal_sql, [$pr_id]);
+sqlsrv_execute($appeal_stmt);
+while ($row = sqlsrv_fetch_array($appeal_stmt, SQLSRV_FETCH_ASSOC)) {
+    $appealItems[$row['question_id']] = $row;
+}
+
+// Decode reviewer answers
+$answers = !empty($feedback['answers']) ? json_decode($feedback['answers'], true) : [];
+$reviewerImages = !empty($feedback['image_paths']) ? json_decode($feedback['image_paths'], true) : [];
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Appeal Review</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="pr_feedback.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Appeal Review</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+<link href="pr_feedback.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+/* Distinguish appeal images */
+.appeal-image {
+    border: 2px solid orange;
+}
+</style>
 </head>
 <body>
 <div class="container">
-
-<?php if ($pr_id): ?>
 
 <?php if ($feedback): ?>
 <div class="feedback-card">
@@ -63,104 +106,64 @@ $mysqli->close();
     </div>
 
     <h4>Feedback</h4>
-    <form id="appealForm" action="submit_appeal.php" method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="pr_id" value="<?= htmlspecialchars($pr_id) ?>">
+    <ul>
+    <?php foreach ($questions as $question): 
+        $qid = $question['question_id'];
+        $answer = $answers['q'.$qid] ?? null;
 
-        <ul>
-        <?php 
-        while ($question = $questions_result->fetch_assoc()) {
-    $qid = $question['question_id'];
-    $answer = $answers['q'.$qid] ?? null;
+        if (!$answer || strtolower($answer) === 'not applicable') continue;
+    ?>
+        <li>
+            <p><strong><?= htmlspecialchars($question['question_text']) ?></strong></p>
+            <strong>Peer Reviewer Answer:</strong> <?= htmlspecialchars($answer) ?><br>
 
-    if ($answer && strtolower($answer) !== 'not applicable') {
+            <?php
+            if (strtolower($answer) === "applicable") {
+                $fatality = $answers['fatality'.$qid] ?? null;
+                $fatality_display = $fatality === 'fatal' ? "<span class='highlight'>Fatal Error</span>" :
+                                   ($fatality === 'nonFatal' ? "Non-Fatal Error" : "Not specified");
+                echo "<strong>Fatality:</strong> $fatality_display<br>";
 
-        echo "<li><p><strong>" . htmlspecialchars($question['question_text']) . "</strong></p>";
-
-        echo "<strong>Peer Reviewer Answer:</strong> " . htmlspecialchars($answer);
-
-        // FATALITY + REMARKS
-        if (strtolower($answer) === "applicable") {
-            $fatality = $answers['fatality'.$qid] ?? null;
-            $fatality_display = $fatality === 'fatal' ? "<span class='highlight'>Fatal Error</span>" :
-                              ($fatality === 'nonFatal' ? "Non-Fatal Error" : "Not specified");
-            echo "<br><strong>Fatality:</strong> $fatality_display";
-
-            $remarks = $answers['remarks'.$qid] ?? 'No remarks provided';
-            echo "<br><strong>Remarks:</strong> " . htmlspecialchars($remarks);
-        }
-
-        // PROOF IMAGES
-        $images = isset($feedback['image_paths']) ? json_decode($feedback['image_paths'], true) : [];
-        if (!empty($images['q'.$qid])) {
-            echo "<br><strong>Proof:</strong><br>";
-            foreach ($images['q'.$qid] as $img) {
-                $path = '../uploads/' . htmlspecialchars($img);
-                echo "<img src='$path' class='img-thumbnail preview-image' style='max-width:150px;margin:5px;cursor:pointer;' data-bs-toggle='modal' data-bs-target='#imageModal' data-img-src='$path'>";
+                $remarks = $answers['remarks'.$qid] ?? 'No remarks provided';
+                echo "<strong>Remarks:</strong> " . htmlspecialchars($remarks) . "<br>";
             }
-        } else {
-            echo "<p>No images uploaded.</p>";
-        }
-        // RADIO BUTTON ANSWER
-        echo "<hr><p style='margin-bottom:0px'><strong>Your Answer:</strong></p>";
 
-        $applicableChecked = strtolower($answer) === "applicable" ? "checked" : "";
-        $notApplicableChecked = strtolower($answer) === "not applicable" ? "checked" : "";
+            // ---------------------------
+            // Reviewer images from Azure Blob
+            // ---------------------------
+            if (!empty($reviewerImages['q'.$qid])) {
+                echo "<strong>Proof:</strong><br>";
+                foreach ($reviewerImages['q'.$qid] as $img) {
+                    // Generate Azure Blob URL
+                    $url = "https://$accountName.blob.core.windows.net/$container/" . urlencode($img);
+                    echo "<img src='$url' class='img-thumbnail preview-image' style='max-width:150px;margin:5px;cursor:pointer;' data-bs-toggle='modal' data-bs-target='#imageModal' data-img-src='$url'>";
+                }
+            } else {
+                echo "<p>No images uploaded.</p>";
+            }
 
-        echo "
-        <div class='na-options'>
-            <div class='form-check'>
-                <label class='form-check-label'>
-                <input class='form-check-input answer-radio' 
-                       type='radio'
-                       name='builder_answer[$qid]'
-                       value='Applicable'
-                       data-qid='$qid'
-                       $applicableChecked> Applicable</label>
-            </div>
+            // ---------------------------
+            // Appeal images
+            // ---------------------------
+            if (!empty($appealItems[$qid]['image_paths'])) {
+                $appealImgs = json_decode($appealItems[$qid]['image_paths'], true);
+                if ($appealImgs) {
+                    echo "<br><strong>Builder Appeal Images:</strong><br>";
+                    foreach ($appealImgs as $img) {
+                        $url = "https://$accountName.blob.core.windows.net/$container/" . urlencode($img);
+                        echo "<img src='$url' class='img-thumbnail preview-image appeal-image' style='max-width:150px;margin:5px;cursor:pointer;' data-bs-toggle='modal' data-bs-target='#imageModal' data-img-src='$url'>";
+                    }
+                }
+            }
 
-            <div class='form-check'>
-            	<label class='form-check-label'>
-                <input class='form-check-input answer-radio'
-                       type='radio'
-                       name='builder_answer[$qid]'
-                       value='Not Applicable'
-                       data-qid='$qid'
-                       $notApplicableChecked> Not Applicable</label>
-            </div>
-       </div>
-        ";
-
-
-        // BUILDER EXPLANATION + IMAGE UPLOAD (initially hidden if Applicable is selected)
-        $hideBlock = strtolower($answer) === "applicable" ? "style='display:none;'" : "";
-
-        echo "
-            <div id='appealBlock_$qid' class='mt-2' $hideBlock>
-                <strong>Builder's Explanation:</strong><br>
-                <textarea name='explanation[$qid]' class='form-control' rows='3' placeholder='Explain your appeal...'></textarea>
-
-                <br><strong>Upload Supporting Images (Optional):</strong><br>
-                <input type='file' name='builder_images[$qid][]' multiple accept='image/*' class='form-control'>
-            </div>
-        ";
-
-        echo "</li>";
-    }
-}
-        ?>
-        </ul>
-
-        <div class="mb-3">
-            <button type="submit" class="btn btn-warning" id="submitAppeal"><i class="bi bi-send"></i> Submit Appeal</button>
-        </div>
-    </form>
+            ?>
+            <hr>
+        </li>
+    <?php endforeach; ?>
+    </ul>
 </div>
 <?php else: ?>
 <div class="alert alert-warning">No feedback found for PRID <?= htmlspecialchars($pr_id) ?>.</div>
-<?php endif; ?>
-
-<?php else: ?>
-<div class="alert alert-danger">Invalid PRID.</div>
 <?php endif; ?>
 
 </div>
@@ -175,15 +178,6 @@ $mysqli->close();
     </div>
   </div>
 </div>
-<!-- Loading spinner -->
-<div id="loadingOverlay" 
-     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-            background:rgba(255,255,255,0.85); z-index:9999; text-align:center;">
-    <div style="position:relative; top:40%;">
-        <div class="spinner-border text-primary" style="width:4rem;height:4rem;"></div>
-        <p style="margin-top:15px; font-size:18px;">Submitting Appeal...</p>
-    </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
@@ -192,23 +186,6 @@ document.querySelectorAll('.preview-image').forEach(img => {
     document.getElementById('modalImage').src = img.dataset.imgSrc;
   });
 });
-document.querySelectorAll('.answer-radio').forEach(radio => {
-    radio.addEventListener('change', () => {
-        let qid = radio.dataset.qid;
-        let block = document.getElementById('appealBlock_' + qid);
-
-        if (radio.value === "Applicable") {
-            block.style.display = "none";
-        } else {
-            block.style.display = "block";
-        }
-    });
-});
-
-document.getElementById("appealForm").addEventListener("submit", function(e) {
-    document.getElementById("loadingOverlay").style.display = "block";
-});
 </script>
-
 </body>
 </html>
