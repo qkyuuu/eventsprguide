@@ -173,8 +173,7 @@ View Feedback
 // ---------------------------
 // 10. Trigger Power Automate
 // ---------------------------
-$flowUrl = 'https://default10f787270c1845afb9ee97e94fd5bc.d8.environment.api.powerplatform.com/powerautomate/automations/direct/workflows/62469676a4f44d61b22674cd7e33b2e0/triggers/manual/paths/invoke?api-version=1';
-
+$flowUrl = 'https://default10f787270c1845afb9ee97e94fd5bc.d8.environment.api.powerplatform.com/powerautomate/automations/direct/workflows/62469676a4f44d61b22674cd7e33b2e0/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=_pysnZPyPOIj5zbQq0chYqOrtLewwi-UCND9aAJvNEE';
 $data = [
     "ToEmail"     => trim($feedback['peer_reviewer_email']),
     "SubjectText" => "Appeal Submitted for PRID $pr_id",
