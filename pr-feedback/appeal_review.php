@@ -102,7 +102,7 @@ $reviewerImages = !empty($feedback['image_paths']) ? json_decode($feedback['imag
         <p><strong><?= htmlspecialchars($feedback['pr_id']) ?></strong></p>
         <p><strong>Peer Reviewer:</strong> <?= htmlspecialchars(ucwords($feedback['peer_reviewer_name'])) ?> (<?= htmlspecialchars($feedback['peer_reviewer_email']) ?>)</p>
         <p><strong>Builder:</strong> <?= htmlspecialchars(ucwords($feedback['builder_name'])) ?> (<?= htmlspecialchars($feedback['builder_email']) ?>)</p>
-        <p><strong>Date:</strong> <?= htmlspecialchars($feedback['created_at']) ?></p>
+        <p><strong>Date:</strong> <?= htmlspecialchars($feedback['created_at']->format('Y-m-d H:i:s')) ?></p>
     </div>
 
     <h4>Feedback</h4>
