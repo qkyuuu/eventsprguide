@@ -141,7 +141,7 @@ foreach ($builder_answers as $qid => $answer) {
 // 8. Close connection
 // ---------------------------
 sqlsrv_close($conn);
-$sendEmailUrl = "https://eventsprguide.infinityfree.me/pr-feedback/send_appeal_email.php?pr_id=" . urlencode($pr_id);
+$sendEmailUrl = "https://eventsprguide-fxgqhpcsgeamcyh7.southeastasia-01.azurewebsites.net/pr-feedback/send_appeal_email.php?pr_id=" . urlencode($pr_id);
 @file_get_contents($sendEmailUrl);
 // ---------------------------
 // 9. Redirect
