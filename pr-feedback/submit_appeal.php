@@ -22,7 +22,7 @@ $conn = sqlsrv_connect($serverName, $connectionOptions);
 
 if (!$conn) {
     $errors = sqlsrv_errors();
-    die(print_r($errors, true));
+    die("Connection failed: " . print_r($errors, true));
 }
 
 // ---------------------------
@@ -56,7 +56,12 @@ if (!$pr_id) {
 $sql = "SELECT appeal_id FROM pr_appeals WHERE pr_id = ?";
 $params = [$pr_id];
 $stmt = sqlsrv_prepare($conn, $sql, $params);
-sqlsrv_execute($stmt);
+if (!$stmt) {
+    die("Prepare failed: " . print_r(sqlsrv_errors(), true));
+}
+if (!sqlsrv_execute($stmt)) {
+    die("Execute failed: " . print_r(sqlsrv_errors(), true));
+}
 
 if (sqlsrv_has_rows($stmt)) {
     die("This PR has already been appealed.");
@@ -68,7 +73,12 @@ if (sqlsrv_has_rows($stmt)) {
 $sql = "SELECT builder_email FROM pr_submissions WHERE pr_id = ?";
 $params = [$pr_id];
 $stmt = sqlsrv_prepare($conn, $sql, $params);
-sqlsrv_execute($stmt);
+if (!$stmt) {
+    die("Prepare failed: " . print_r(sqlsrv_errors(), true));
+}
+if (!sqlsrv_execute($stmt)) {
+    die("Execute failed: " . print_r(sqlsrv_errors(), true));
+}
 $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
 
 if (!$row) {
@@ -82,12 +92,24 @@ $builder_email = $row['builder_email'];
 $sql = "INSERT INTO pr_appeals (pr_id, builder_email) VALUES (?, ?)";
 $params = [$pr_id, $builder_email];
 $stmt = sqlsrv_prepare($conn, $sql, $params);
-sqlsrv_execute($stmt);
+if (!$stmt) {
+    die("Prepare failed: " . print_r(sqlsrv_errors(), true));
+}
+if (!sqlsrv_execute($stmt)) {
+    die("Execute failed: " . print_r(sqlsrv_errors(), true));
+}
 
-// Get the newly inserted appeal_id
+// Confirm appeal insert
 $appeal_id_stmt = sqlsrv_query($conn, "SELECT SCOPE_IDENTITY() AS id");
+if (!$appeal_id_stmt) {
+    die("Failed to get appeal ID: " . print_r(sqlsrv_errors(), true));
+}
 $appeal_row = sqlsrv_fetch_array($appeal_id_stmt, SQLSRV_FETCH_ASSOC);
-$appeal_id = $appeal_row['id'];
+$appeal_id = $appeal_row['id'] ?? null;
+
+if (!$appeal_id) {
+    die("Could not retrieve newly inserted appeal ID.");
+}
 
 // ---------------------------
 // 8. Loop through each question
@@ -140,7 +162,12 @@ foreach ($builder_answers as $qid => $answer) {
             VALUES (?, ?, ?, ?, ?)";
     $params = [$appeal_id, $qid, $answer, $explanation, $images_json];
     $stmt = sqlsrv_prepare($conn, $sql, $params);
-    sqlsrv_execute($stmt);
+    if (!$stmt) {
+        die("Prepare failed (pr_appeal_items): " . print_r(sqlsrv_errors(), true));
+    }
+    if (!sqlsrv_execute($stmt)) {
+        die("Execute failed (pr_appeal_items): " . print_r(sqlsrv_errors(), true));
+    }
 }
 
 // ---------------------------
