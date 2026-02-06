@@ -128,33 +128,30 @@ PRID:
 // ---------------------------
 // 9. Questions Loop
 // ---------------------------
-foreach ($questions as $qid => $qText) {
-    if (($answers['q'.$qid] ?? '') !== 'applicable') continue;
-
-    $appeal = $appeal_items[$qid] ?? null;
+foreach ($appeal_items as $qid => $appeal) {
+    $qText = $questions[$qid] ?? "Question $qid";
 
     $emailBody .= '
 <tr><td style="padding:15px">
 <table width="100%" bgcolor="#f1f4f9" style="border-radius:8px" cellpadding="15">
 <tr><td><strong>Question:</strong> '.htmlspecialchars($qText).'</td></tr>';
 
-    if ($appeal) {
-        $emailBody .= '
-<tr><td><strong>Appeal Explanation:</strong><br>'
-.htmlspecialchars($appeal['explanation']).'</td></tr>';
+    $emailBody .= '
+<tr><td><strong>Builder Appeal Explanation:</strong><br>'
+        .htmlspecialchars($appeal['explanation'] ?? 'No explanation provided').'</td></tr>';
 
-        if (!empty($appeal['image_paths'])) {
-            $emailBody .= '<tr><td>';
-            foreach ($appeal['image_paths'] as $img) {
-                $imgUrl = $azureBlobBase . rawurlencode($img);
-                $emailBody .= '<img src="'.$imgUrl.'" style="max-width:150px;margin:5px">';
-            }
-            $emailBody .= '</td></tr>';
+    if (!empty($appeal['image_paths'])) {
+        $emailBody .= '<tr><td>';
+        foreach ($appeal['image_paths'] as $img) {
+            $imgUrl = $azureBlobBase . rawurlencode($img);
+            $emailBody .= '<img src="'.$imgUrl.'" style="max-width:150px;margin:5px">';
         }
+        $emailBody .= '</td></tr>';
     }
 
     $emailBody .= '</table></td></tr>';
 }
+
 
 $emailBody .= '
 <tr><td align="center" style="padding:25px">
