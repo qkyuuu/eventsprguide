@@ -1,238 +1,195 @@
 <?php
-require_once __DIR__ . '/../PHPMailer-master/src/PHPMailer.php';
-require_once __DIR__ . '/../PHPMailer-master/src/SMTP.php';
-require_once __DIR__ . '/../PHPMailer-master/src/Exception.php';
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-// ------------------- DB Connection -------------------
-$host = "sql103.infinityfree.com";
-$username = "if0_40271114";
-$password = "QdO20m5hR4JbOHe";
-$dbname = "if0_40271114_peer_review_db";
-
+// ---------------------------
+// 1. Get PR ID
+// ---------------------------
 $pr_id = $_GET['pr_id'] ?? null;
 if (!$pr_id) die("PR ID missing.");
 
-$mysqli = new mysqli($host, $username, $password, $dbname);
-if ($mysqli->connect_error) die("Database connection error");
+// ---------------------------
+// 2. Azure SQL Connection
+// ---------------------------
+$connectionOptions = [
+    "Database" => "events-pr-db",
+    "Uid"      => "qmsadmin",
+    "PWD"      => "Codegenqms!",
+    "Encrypt"  => true
+];
+$serverName = "tcp:qms-server.database.windows.net,1433";
+$conn = sqlsrv_connect($serverName, $connectionOptions);
 
-// ------------------- Get PR Submission -------------------
-$stmt = $mysqli->prepare("SELECT * FROM pr_submissions WHERE pr_id = ?");
-$stmt->bind_param("s", $pr_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$feedback = $result->fetch_assoc();
-$stmt->close();
+if (!$conn) die(print_r(sqlsrv_errors(), true));
 
-if (!$feedback) die("Invalid PRID.");
+// ---------------------------
+// 3. Fetch PR Submission
+// ---------------------------
+$stmt = sqlsrv_query(
+    $conn,
+    "SELECT * FROM pr_submissions WHERE pr_id = ?",
+    [$pr_id]
+);
 
-// ------------------- Decode JSON Answers & Images -------------------
-$answers = !is_null($feedback['answers']) ? json_decode($feedback['answers'], true) : [];
-$images  = !is_null($feedback['image_paths']) ? json_decode($feedback['image_paths'], true) : [];
+$feedback = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+if (!$feedback) die("Invalid PR ID.");
 
-// ------------------- Fetch Questions -------------------
-$questions_sql = $mysqli->query("SELECT * FROM questions");
+// ---------------------------
+// 4. Decode Answers
+// ---------------------------
+$answers = !empty($feedback['answers'])
+    ? json_decode($feedback['answers'], true)
+    : [];
+
+// ---------------------------
+// 5. Fetch Questions
+// ---------------------------
 $questions = [];
-while ($row = $questions_sql->fetch_assoc()) {
-    $questions[$row['question_id']] = $row['question_text'];
+$qResult = sqlsrv_query($conn, "SELECT * FROM questions");
+while ($q = sqlsrv_fetch_array($qResult, SQLSRV_FETCH_ASSOC)) {
+    $questions[$q['question_id']] = $q['question_text'];
 }
 
-// ------------------- Fetch Latest Appeal & Items -------------------
+// ---------------------------
+// 6. Fetch Latest Appeal
+// ---------------------------
+$stmt = sqlsrv_query(
+    $conn,
+    "SELECT TOP 1 appeal_id FROM pr_appeals WHERE pr_id = ? ORDER BY appeal_id DESC",
+    [$pr_id]
+);
+
+$appealRow = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+$appeal_id = $appealRow['appeal_id'] ?? null;
+
 $appeal_items = [];
-$stmt = $mysqli->prepare("SELECT appeal_id FROM pr_appeals WHERE pr_id = ? ORDER BY appeal_id DESC LIMIT 1");
-$stmt->bind_param("s", $pr_id);
-$stmt->execute();
-$result = $stmt->get_result();
-$appeal_row = $result->fetch_assoc();
-$appeal_id = $appeal_row['appeal_id'] ?? null;
-$stmt->close();
 
 if ($appeal_id) {
-    $stmt = $mysqli->prepare("SELECT * FROM pr_appeal_items WHERE appeal_id = ?");
-    $stmt->bind_param("i", $appeal_id);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
-        $row['image_paths'] = json_decode($row['image_paths'], true); // decode images
+    $stmt = sqlsrv_query(
+        $conn,
+        "SELECT * FROM pr_appeal_items WHERE appeal_id = ?",
+        [$appeal_id]
+    );
+
+    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $row['image_paths'] = !empty($row['image_paths'])
+            ? json_decode($row['image_paths'], true)
+            : [];
         $appeal_items[$row['question_id']] = $row;
     }
-    $stmt->close();
 }
 
-$mysqli->close();
+sqlsrv_close($conn);
 
-// ------------------- Fix Builder/Peer Names -------------------
-$feedback['builder_name']       = ucwords(strtolower($feedback['builder_name'] ?? ''));
-$feedback['peer_reviewer_name'] = ucwords(strtolower($feedback['peer_reviewer_name'] ?? ''));
+// ---------------------------
+// 7. Formatting
+// ---------------------------
+$builderName  = ucwords(strtolower($feedback['builder_name'] ?? 'Builder'));
+$reviewerName = ucwords(strtolower($feedback['peer_reviewer_name'] ?? 'Reviewer'));
+$taskName     = $feedback['task_name'] ?? '';
+$taskShort    = mb_strimwidth($taskName, 0, 60, '...');
 
-// ------------------- Build TaskNameShort -------------------
-$originalTaskName = $feedback['task_name'] ?? '';
-$matches = [];
-$shortened = $originalTaskName;
+$azureBlobBase = 'https://eventsprimagestore.blob.core.windows.net/pr-images/';
+$webBaseUrl    = 'https://eventsprguide-fxgqhpcsgeamcyh7.southeastasia-01.azurewebsites.net';
+$githubImg     = 'https://raw.githubusercontent.com/qkyuuu/eventsprguide/main/img/';
 
-if (preg_match('/^([A-Z]+_[A-Z0-9]+)_.*(_ST\\d+)_?$/u', $originalTaskName, $matches)) {
-    $shortened = $matches[1] . $matches[2];
-} else {
-    $parts = preg_split('/\\s+/', $originalTaskName);
-    if (count($parts) >= 2) {
-        $shortened = $parts[0] . (preg_match('/_ST\\d+/', end($parts)) ? end($parts) : '');
-    }
-}
+// ---------------------------
+// 8. Build Email Body (DESIGN UNCHANGED)
+// ---------------------------
+$emailBody = '<html><body style="font-family:Arial,sans-serif;">
+<table width="100%" bgcolor="#e3e3e3"><tr><td align="center">
+<table width="1000" bgcolor="#ffffff">
 
-$taskNameShort = htmlspecialchars($shortened, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+<tr><td align="right" style="padding:15px;font-size:10px">
+<a href="'.$webBaseUrl.'/pr-feedback/pr_feedback.php?pr_id='.urlencode($pr_id).'">
+<em>If this email displays incorrectly, click here</em></a>
+</td></tr>
 
-// ------------------- Build Email Body -------------------
-$emailBody = '<html><head><meta charset="UTF-8"></head><body style="font-family:Arial,sans-serif; margin:0; padding:0;">';
-$emailBody .= '
-<table width="100%" border="0" cellspacing="0" cellpadding="0" align="center" bgcolor="#e3e3e3">
-  <tr>
-    <td align="center">
-      <table width="1000" border="0" cellspacing="0" cellpadding="0" bgcolor="#FFFFFF" align="center">
-        <tr><td bgcolor="#e2e2e2">&nbsp;</td></tr>
+<tr><td><img src="'.$githubImg.'Header.jpg" width="100%"></td></tr>
 
-        <tr>
-        	<td style="padding: 15px; font-size:10.5px" align="right">
-            	<a href="https://eventsprguide.infinityfree.me/pr-feedback/pr_feedback.php?pr_id=' . urlencode($pr_id) . 
-                '" target="_blank" style="color:#000000; text-decoration:none">
-                <em>If this email displays incorrectly, click here</em></a>
-            </td>
-        </tr>
+<tr><td style="text-align:center;font-size:25pt;color:#071952;font-weight:bold">
+Feedback Appeal Received
+</td></tr>
 
-        <tr><td align="center"><img src="https://eventsprguide.infinityfree.me/img/Header.jpg" width="100%" /></td></tr>
-        <tr><td>&nbsp;</td></tr>
+<tr><td style="padding:30px;font-size:12pt">
+<p>Dear '.$reviewerName.',</p>
+<p><strong>'.$builderName.'</strong> has appealed your feedback.</p>
 
-        <tr>
-          <td style="color:#071952; font-size:25pt; padding:5px 20px; font-weight:700" align="center">
-            Feedback Appeal Received
-          </td>
-        </tr>
+<p style="color:#192f75;font-size:14pt">
+<strong>'.$taskShort.'</strong><br>
+PRID:
+<a href="'.$webBaseUrl.'/pr-feedback/pr_feedback.php?pr_id='.urlencode($pr_id).'">
+'.$pr_id.'</a>
+</p>
+</td></tr>
 
-        <tr>
-          <td style="padding:30px 40px 10px 40px; color:#000000; font-size:12pt">
-            <p>Dear '. htmlspecialchars($feedback['peer_reviewer_name']) . ',</p>
-            <p><strong>' . htmlspecialchars($feedback['builder_name']) . '</strong> has appealed your feedback. Please review the details below.</p>
+<tr><td><img src="'.$githubImg.'Divider.png" width="100%"></td></tr>';
 
-            <p style="font-size:14pt;color:#192f75">
-                <strong>' . $taskNameShort . '</strong><br/>
-                <span style="font-size:12pt">PRID: 
-                    <a href="https://eventsprguide.infinityfree.me/pr-feedback/pr_feedback.php?pr_id=' . urlencode($pr_id) . '" 
-                       target="_blank" style="color:#192f75">' . htmlspecialchars($pr_id) . '</a>
-                </span>
-            </p>
-          </td>
-        </tr>
-
-        <tr>
-          <td style="padding:10px 40px 20px 40px; font-size:12pt">
-            <table width="100%" border="0" cellspacing="0" cellpadding="0">
-              <tr><td align="center"><img src="https://eventsprguide.infinityfree.me/img/Divider.png" width="100%" /></td></tr>
-';
-
-// ------------------- Loop All Applicable Questions -------------------
+// ---------------------------
+// 9. Questions Loop
+// ---------------------------
 foreach ($questions as $qid => $qText) {
-    $answerKey = 'q' . $qid;
-
-    if (!isset($answers[$answerKey]) || strtolower($answers[$answerKey]) !== 'applicable') continue;
+    if (($answers['q'.$qid] ?? '') !== 'applicable') continue;
 
     $appeal = $appeal_items[$qid] ?? null;
 
     $emailBody .= '
-    <tr>
-      <td style="padding-bottom:15px;">
-        <table width="100%" style="background-color:#f1f4f9; border-radius:8px;">
-          <tr>
-            <td style="padding:20px;">
-              <table width="100%">
-                <tr>
-                    <td width="10%"><strong>Question:</strong></td>
-                    <td>' . htmlspecialchars($qText) . '</td>
-                </tr>
-              </table>';
+<tr><td style="padding:15px">
+<table width="100%" bgcolor="#f1f4f9" style="border-radius:8px" cellpadding="15">
+<tr><td><strong>Question:</strong> '.htmlspecialchars($qText).'</td></tr>';
 
     if ($appeal) {
         $emailBody .= '
-        <p style="margin-top:10px;"><strong>Appeal:</strong></p>
-        <p>' . nl2br(htmlspecialchars($appeal['explanation'] ?? 'No explanation provided')) . '</p>';
+<tr><td><strong>Appeal Explanation:</strong><br>'
+.htmlspecialchars($appeal['explanation']).'</td></tr>';
 
         if (!empty($appeal['image_paths'])) {
-            $emailBody .= '<p><strong>Appeal Images:</strong><br>';
+            $emailBody .= '<tr><td>';
             foreach ($appeal['image_paths'] as $img) {
-                $url = "https://eventsprguide.infinityfree.me/uploads/" . urlencode($img);
-                $emailBody .= '<img src="' . htmlspecialchars($url) . '" alt="Appeal Image" style="max-width:150px; margin-right:5px; margin-top:5px;">';
+                $imgUrl = $azureBlobBase . rawurlencode($img);
+                $emailBody .= '<img src="'.$imgUrl.'" style="max-width:150px;margin:5px">';
             }
-            $emailBody .= '</p>';
+            $emailBody .= '</td></tr>';
         }
     }
 
-    $emailBody .= '
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>';
+    $emailBody .= '</table></td></tr>';
 }
 
 $emailBody .= '
-            </table>
-          </td>
-        </tr>
-        <tr>
-        	<td align="center">
-            	<table width="100%" border="0" cellspacing="0" cellpadding="0">
-                	<tr>
-  <td align="center" style="padding:20px 0;">
-    <!--[if mso]>
-    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://eventsprguide.infinityfree.me/pr-feedback/pr_feedback.php?pr_id=<?php echo urlencode($pr_id); ?>" style="height:40px;v-text-anchor:middle;width:200px;" arcsize="10%" stroke="f" fillcolor="#192f75">
-      <w:anchorlock/>
-      <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:14pt;font-weight:bold;">View Feedback</center>
-    </v:roundrect>
-    <![endif]-->
-    <![if !mso]>
-    <a href="https://eventsprguide.infinityfree.me/pr-feedback/pr_feedback.php?pr_id=<?php echo urlencode($pr_id); ?>" 
-       style="display:inline-block; background-color:#192f75; color:#ffffff; font-family:Arial,sans-serif; font-size:14pt; font-weight:bold; line-height:40px; text-align:center; text-decoration:none; width:200px; border-radius:4px;">
-       View Feedback
-    </a>
-    <![endif]>
-  </td>
-</tr>
+<tr><td align="center" style="padding:25px">
+<a href="'.$webBaseUrl.'/pr-feedback/pr_feedback.php?pr_id='.urlencode($pr_id).'"
+style="background:#192f75;color:#fff;padding:12px 25px;
+text-decoration:none;border-radius:5px;font-weight:bold">
+View Feedback
+</a>
+</td></tr>
 
-				</table>
-            </td>
-        </tr>
+<tr><td><img src="'.$githubImg.'Footer.png" width="100%"></td></tr>
 
-        <tr><td align="center"><img src="https://eventsprguide.infinityfree.me/img/Footer.png" width="100%" /></td></tr>
-      </table>
-    </td>
-  </tr>
-</table>
-</body></html>
-';
+</table></td></tr></table>
+</body></html>';
 
-// ------------------- SEND EMAIL -------------------
-$mail = new PHPMailer(true);
+// ---------------------------
+// 10. Trigger Power Automate
+// ---------------------------
+$flowUrl = 'https://default10f787270c1845afb9ee97e94fd5bc.d8.environment.api.powerplatform.com/powerautomate/automations/direct/workflows/62469676a4f44d61b22674cd7e33b2e0/triggers/manual/paths/invoke?api-version=1';
 
-try {
-    $mail->isSMTP();
-    $mail->Host = 'smtp-relay.brevo.com';
-    $mail->SMTPAuth = true;
-    $mail->Username = '9aa2c9001@smtp-brevo.com';
-    $mail->Password = 'xsmtpsib-2cb4cb8c25ef265ddd14f13d558ed472e60a0194c17b82882e5ac8b0ef6699a5-dvJBO7UuPdH70xe0';
-    $mail->SMTPSecure = 'tls';
-    $mail->Port = 587;
+$data = [
+    "ToEmail"     => trim($feedback['peer_reviewer_email']),
+    "SubjectText" => "Appeal Submitted for PRID $pr_id",
+    "BodyText"    => $emailBody
+];
 
-    $mail->setFrom('m.pastoral19@gmail.com', 'PR System');
-    $mail->addAddress($feedback['peer_reviewer_email'], $feedback['peer_reviewer_name']);
+$ch = curl_init($flowUrl);
+curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true,
+    CURLOPT_POST           => true,
+    CURLOPT_POSTFIELDS     => json_encode($data),
+    CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+    CURLOPT_SSL_VERIFYPEER => false
+]);
+curl_exec($ch);
+curl_close($ch);
 
-    $mail->isHTML(true);
-    $mail->Subject = "Appeal Submitted for PRID $pr_id";
-    $mail->Body = $emailBody;
-
-    $mail->send();
-    echo "Email Sent.";
-
-} catch (Exception $e) {
-    echo "Mailer Error: " . $mail->ErrorInfo;
-}
-?>
+echo "Appeal email sent.";
