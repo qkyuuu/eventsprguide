@@ -51,7 +51,7 @@ $feedback = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
         die(print_r(sqlsrv_errors(), true));
     }
 }
-
+$azureBlobBaseUrl = "https://eventsprimagestore.blob.core.windows.net/pr-images/";
 // Fetch appeal data for this PR
 $appeal_items = [];
 $appeal_sql = "
@@ -304,7 +304,7 @@ $githubUploadsBase = 'https://raw.githubusercontent.com/qkyuuu/eventsprguide/mai
 
 if (!empty($images['q'.$qid])) {
     foreach ($images['q'.$qid] as $img) {
-        $path = $githubUploadsBase . rawurlencode($img);
+        $path = $azureBlobBaseUrl . rawurlencode($img);
 
         echo "<img src='$path'
               class='img-thumbnail preview-image mt-2'
