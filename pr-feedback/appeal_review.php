@@ -31,6 +31,7 @@ $container   = getenv('AZURE_STORAGE_CONTAINER');
 
 $connectionString = "DefaultEndpointsProtocol=https;AccountName=$accountName;AccountKey=$accountKey";
 $blobClient = BlobRestProxy::createBlobService($connectionString);
+$azureBlobBaseUrl = "https://$accountName.blob.core.windows.net/$container/";
 
 // ---------------------------
 // 3. Get PR ID
@@ -57,7 +58,7 @@ $questions_stmt = sqlsrv_query($conn, "SELECT * FROM questions");
 while ($row = sqlsrv_fetch_array($questions_stmt, SQLSRV_FETCH_ASSOC)) {
     $questions[] = $row;
 }
-$azureBlobBaseUrl = "https://eventsprimagestore.blob.core.windows.net/pr-images/";
+
 // ---------------------------
 // 6. Fetch appeal items (if any)
 // ---------------------------
@@ -70,7 +71,7 @@ while ($row = sqlsrv_fetch_array($appeal_stmt, SQLSRV_FETCH_ASSOC)) {
     $appealItems[$row['question_id']] = $row;
 }
 
-// Decode reviewer answers
+// Decode reviewer answers and images
 $answers = !empty($feedback['answers']) ? json_decode($feedback['answers'], true) : [];
 $reviewerImages = !empty($feedback['image_paths']) ? json_decode($feedback['image_paths'], true) : [];
 ?>
@@ -106,62 +107,115 @@ $reviewerImages = !empty($feedback['image_paths']) ? json_decode($feedback['imag
     </div>
 
     <h4>Feedback</h4>
-    <ul>
-    <?php foreach ($questions as $question): 
-        $qid = $question['question_id'];
-        $answer = $answers['q'.$qid] ?? null;
+    <form id="appealForm" action="submit_appeal.php" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="pr_id" value="<?= htmlspecialchars($pr_id) ?>">
 
-        if (!$answer || strtolower($answer) === 'not applicable') continue;
-    ?>
-        <li>
-            <p><strong><?= htmlspecialchars($question['question_text']) ?></strong></p>
-            <strong>Peer Reviewer Answer:</strong> <?= htmlspecialchars($answer) ?><br>
+        <ul>
+        <?php foreach ($questions as $question): 
+            $qid = $question['question_id'];
+            $answer = $answers['q'.$qid] ?? null;
+            if (!$answer || strtolower($answer) === 'not applicable') continue;
+        ?>
+            <li>
+                <p><strong><?= htmlspecialchars($question['question_text']) ?></strong></p>
+                <strong>Peer Reviewer Answer:</strong> <?= htmlspecialchars($answer) ?><br>
 
-            <?php
-            if (strtolower($answer) === "applicable") {
-                $fatality = $answers['fatality'.$qid] ?? null;
-                $fatality_display = $fatality === 'fatal' ? "<span class='highlight'>Fatal Error</span>" :
-                                   ($fatality === 'nonFatal' ? "Non-Fatal Error" : "Not specified");
-                echo "<strong>Fatality:</strong> $fatality_display<br>";
+                <?php
+                // Fatality + Remarks
+                if (strtolower($answer) === "applicable") {
+                    $fatality = $answers['fatality'.$qid] ?? null;
+                    $fatality_display = $fatality === 'fatal' ? "<span class='highlight'>Fatal Error</span>" :
+                                       ($fatality === 'nonFatal' ? "Non-Fatal Error" : "Not specified");
+                    echo "<strong>Fatality:</strong> $fatality_display<br>";
 
-                $remarks = $answers['remarks'.$qid] ?? 'No remarks provided';
-                echo "<strong>Remarks:</strong> " . htmlspecialchars($remarks) . "<br>";
-            }
-
-            // ---------------------------
-            // Reviewer images from Azure Blob
-            // ---------------------------
-            if (!empty($reviewerImages['q'.$qid])) {
-                echo "<strong>Proof:</strong><br>";
-                foreach ($reviewerImages['q'.$qid] as $img) {
-                    // Generate Azure Blob URL
-        $path = $azureBlobBaseUrl . rawurlencode($img);
-                    echo "<img src='$path' class='img-thumbnail preview-image' style='max-width:150px;margin:5px;cursor:pointer;' data-bs-toggle='modal' data-bs-target='#imageModal' data-img-src='$path'>";
+                    $remarks = $answers['remarks'.$qid] ?? 'No remarks provided';
+                    echo "<strong>Remarks:</strong> " . htmlspecialchars($remarks) . "<br>";
                 }
-            } else {
-                echo "<p>No images uploaded.</p>";
-            }
 
-            // ---------------------------
-            // Appeal images
-            // ---------------------------
-            if (!empty($appealItems[$qid]['image_paths'])) {
-                $appealImgs = json_decode($appealItems[$qid]['image_paths'], true);
-                if ($appealImgs) {
-                    echo "<br><strong>Builder Appeal Images:</strong><br>";
-                    foreach ($appealImgs as $img) {
-                        $url = "https://$accountName.blob.core.windows.net/$container/" . urlencode($img);
-                        echo "<img src='$url' class='img-thumbnail preview-image appeal-image' style='max-width:150px;margin:5px;cursor:pointer;' data-bs-toggle='modal' data-bs-target='#imageModal' data-img-src='$url'>";
+                // Reviewer images
+                if (!empty($reviewerImages['q'.$qid])) {
+                    echo "<strong>Proof:</strong><br>";
+                    foreach ($reviewerImages['q'.$qid] as $img) {
+                        $path = $azureBlobBaseUrl . rawurlencode($img);
+                        echo "<img src='$path' class='img-thumbnail preview-image' style='max-width:150px;margin:5px;cursor:pointer;' data-bs-toggle='modal' data-bs-target='#imageModal' data-img-src='$path'>";
+                    }
+                } else {
+                    echo "<p>No images uploaded.</p>";
+                }
+
+                // Appeal images
+                if (!empty($appealItems[$qid]['image_paths'])) {
+                    $appealImgs = json_decode($appealItems[$qid]['image_paths'], true);
+                    if ($appealImgs) {
+                        echo "<br><strong>Builder Appeal Images:</strong><br>";
+                        foreach ($appealImgs as $img) {
+                            $url = $azureBlobBaseUrl . urlencode($img);
+                            echo "<img src='$url' class='img-thumbnail preview-image appeal-image' style='max-width:150px;margin:5px;cursor:pointer;' data-bs-toggle='modal' data-bs-target='#imageModal' data-img-src='$url'>";
+                        }
                     }
                 }
-            }
+                ?>
 
-            ?>
-            <hr>
-        </li>
-    <?php endforeach; ?>
-    </ul>
+                <hr>
+                <p style='margin-bottom:0px'><strong>Your Answer:</strong></p>
+                <?php
+                $applicableChecked = strtolower($answer) === "applicable" ? "checked" : "";
+                $notApplicableChecked = strtolower($answer) === "not applicable" ? "checked" : "";
+                ?>
+                <div class='na-options'>
+                    <div class='form-check'>
+                        <label class='form-check-label'>
+                        <input class='form-check-input answer-radio' 
+                               type='radio'
+                               name='builder_answer[<?= $qid ?>]'
+                               value='Applicable'
+                               data-qid='<?= $qid ?>'
+                               <?= $applicableChecked ?>> Applicable</label>
+                    </div>
+
+                    <div class='form-check'>
+                        <label class='form-check-label'>
+                        <input class='form-check-input answer-radio'
+                               type='radio'
+                               name='builder_answer[<?= $qid ?>]'
+                               value='Not Applicable'
+                               data-qid='<?= $qid ?>'
+                               <?= $notApplicableChecked ?>> Not Applicable</label>
+                    </div>
+                </div>
+
+                <?php
+                $hideBlock = strtolower($answer) === "applicable" ? "style='display:none;'" : "";
+                ?>
+                <div id='appealBlock_<?= $qid ?>' class='mt-2' <?= $hideBlock ?>>
+                    <strong>Builder's Explanation:</strong><br>
+                    <textarea name='explanation[<?= $qid ?>]' class='form-control' rows='3' placeholder='Explain your appeal...'></textarea>
+
+                    <br><strong>Upload Supporting Images (Optional):</strong><br>
+                    <input type='file' name='builder_images[<?= $qid ?>][]' multiple accept='image/*' class='form-control'>
+                </div>
+
+            </li>
+        <?php endforeach; ?>
+        </ul>
+
+        <div class="mb-3">
+            <button type="submit" class="btn btn-warning" id="submitAppeal"><i class="bi bi-send"></i> Submit Appeal</button>
+        </div>
+    </form>
+
 </div>
+
+<!-- Loading spinner -->
+<div id="loadingOverlay" 
+     style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(255,255,255,0.85); z-index:9999; text-align:center;">
+    <div style="position:relative; top:40%;">
+        <div class="spinner-border text-primary" style="width:4rem;height:4rem;"></div>
+        <p style="margin-top:15px; font-size:18px;">Submitting Appeal...</p>
+    </div>
+</div>
+
 <?php else: ?>
 <div class="alert alert-warning">No feedback found for PRID <?= htmlspecialchars($pr_id) ?>.</div>
 <?php endif; ?>
@@ -185,6 +239,18 @@ document.querySelectorAll('.preview-image').forEach(img => {
   img.addEventListener('click', () => {
     document.getElementById('modalImage').src = img.dataset.imgSrc;
   });
+});
+
+document.querySelectorAll('.answer-radio').forEach(radio => {
+    radio.addEventListener('change', () => {
+        let qid = radio.dataset.qid;
+        let block = document.getElementById('appealBlock_' + qid);
+        block.style.display = radio.value === "Applicable" ? "none" : "block";
+    });
+});
+
+document.getElementById("appealForm").addEventListener("submit", function(e) {
+    document.getElementById("loadingOverlay").style.display = "block";
 });
 </script>
 </body>
