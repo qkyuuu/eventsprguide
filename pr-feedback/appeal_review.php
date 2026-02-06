@@ -135,7 +135,8 @@ $reviewerImages = !empty($feedback['image_paths']) ? json_decode($feedback['imag
                 echo "<strong>Proof:</strong><br>";
                 foreach ($reviewerImages['q'.$qid] as $img) {
                     // Generate Azure Blob URL
-                    echo "<img src='$azureBlobBaseUrl' class='img-thumbnail preview-image' style='max-width:150px;margin:5px;cursor:pointer;' data-bs-toggle='modal' data-bs-target='#imageModal' data-img-src='$url'>";
+        $path = $azureBlobBaseUrl . rawurlencode($img);
+                    echo "<img src='$path' class='img-thumbnail preview-image' style='max-width:150px;margin:5px;cursor:pointer;' data-bs-toggle='modal' data-bs-target='#imageModal' data-img-src='$url'>";
                 }
             } else {
                 echo "<p>No images uploaded.</p>";
