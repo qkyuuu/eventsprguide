@@ -165,13 +165,15 @@ foreach ($appeal_items as $qid => $appeal) {
 
 
 $emailBody .= '
-<tr><td align="center" style="padding:25px">
-<a href="'.$webBaseUrl.'/pr-feedback/pr_feedback.php?pr_id='.urlencode($pr_id).'"
-style="background:#192f75;color:#fff;padding:12px 25px;
-text-decoration:none;border-radius:5px;font-weight:bold">
-View Feedback
-</a>
-</td></tr>
+<tr>
+    <td width="35%">&nbsp</td>
+    <td width="30%" align="center" style="padding:12px 25px;background-color:#192f75;color:#fff;">
+        <a href="'.$webBaseUrl.'/pr-feedback/pr_feedback.php?pr_id='.urlencode($pr_id).'" text-decoration:none;font-weight:bold;font-size:12pt">
+            View Feedback
+        </a>
+    </td>
+    <td width="35%">&nbsp</td>
+</tr>
 
 <tr><td><img src="'.$githubImg.'Footer.png" width="100%"></td></tr>
 
