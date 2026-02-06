@@ -51,7 +51,7 @@ $feedback = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
         die(print_r(sqlsrv_errors(), true));
     }
 }
-$azureBlobBaseUrl = "https://eventsprimagestore.blob.core.windows.net/pr-images/";
+
 // Fetch appeal data for this PR
 $appeal_items = [];
 $appeal_sql = "
@@ -101,12 +101,17 @@ if ($appeal_query !== false) {
 
 <?php if (!$pr_id): ?>
 <!-- Filter and Search Buttons -->
-<button id="toggleFilterBtn" type="button" class="btn btn-outline-secondary mb-3">
+<div class="button-header">
+  <a href="https://eventsprguide-fxgqhpcsgeamcyh7.southeastasia-01.azurewebsites.net/index.html" class="btn btn-secondary mb-4">Back to PR Guidek</a>
+  <div class="btn-head-div">
+    <button id="toggleFilterBtn" type="button" class="btn btn-outline-secondary mb-3">
     <i class="bi bi-filter"></i> Filters
 </button>
 <button id="toggleSearchBtn" type="button" class="btn btn-outline-secondary mb-3">
     <i class="bi bi-search"></i> Search PRID
 </button>
+  </div>
+</div>
 
 <!-- Filter Form: Hidden by default -->
 <form method="GET" action="pr_feedback.php" class="mb-3 row g-2 align-items-end" id="filterForm" style="display:none;">
@@ -294,11 +299,11 @@ endif;
        $images = isset($feedback['image_paths']) ? json_decode($feedback['image_paths'], true) : [];
 echo "<div class='mt-3'><strong>Proof:</strong><br>";
 
+$githubUploadsBase = 'https://raw.githubusercontent.com/qkyuuu/eventsprguide/main/uploads/';
+
 if (!empty($images['q'.$qid])) {
     foreach ($images['q'.$qid] as $img) {
-
-        // Azure Blob full image URL
-        $path = $azureBlobBaseUrl . rawurlencode($img);
+        $path = $githubUploadsBase . rawurlencode($img);
 
         echo "<img src='$path'
               class='img-thumbnail preview-image mt-2'
