@@ -57,7 +57,7 @@ $questions_stmt = sqlsrv_query($conn, "SELECT * FROM questions");
 while ($row = sqlsrv_fetch_array($questions_stmt, SQLSRV_FETCH_ASSOC)) {
     $questions[] = $row;
 }
-
+$azureBlobBaseUrl = "https://eventsprimagestore.blob.core.windows.net/pr-images/";
 // ---------------------------
 // 6. Fetch appeal items (if any)
 // ---------------------------
@@ -135,8 +135,7 @@ $reviewerImages = !empty($feedback['image_paths']) ? json_decode($feedback['imag
                 echo "<strong>Proof:</strong><br>";
                 foreach ($reviewerImages['q'.$qid] as $img) {
                     // Generate Azure Blob URL
-                    $url = "https://$accountName.blob.core.windows.net/$container/" . urlencode($img);
-                    echo "<img src='$url' class='img-thumbnail preview-image' style='max-width:150px;margin:5px;cursor:pointer;' data-bs-toggle='modal' data-bs-target='#imageModal' data-img-src='$url'>";
+                    echo "<img src='$azureBlobBaseUrl' class='img-thumbnail preview-image' style='max-width:150px;margin:5px;cursor:pointer;' data-bs-toggle='modal' data-bs-target='#imageModal' data-img-src='$url'>";
                 }
             } else {
                 echo "<p>No images uploaded.</p>";
