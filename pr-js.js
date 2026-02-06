@@ -627,74 +627,82 @@ document.addEventListener("DOMContentLoaded", function () {
       sectionsContainer.appendChild(container);
     }
   });
+// ---------------------------
+// Show/hide fatality + remarks when "Applicable" is selected
+// ---------------------------
+function toggleFatalityVisibility(event) {
+  const qId = event.target.name.replace("q", "");
+  const fatality = document.getElementById(`fatality${qId}`);
+  const proof = document.getElementById(`proof${qId}`);
 
-  // Show/hide fatality + remarks when applicable selected
-  function toggleFatalityVisibility(event) {
-    const qId = event.target.name.replace("q", "");
-    const fatality = document.getElementById(`fatality${qId}`);
-    const proof = document.getElementById(`proof${qId}`);
-
-    if (event.target.value === "Applicable") {
-      fatality.classList.add("show");
-      proof.classList.add("show");
-    } else {
-      fatality.classList.remove("show");
-      proof.classList.remove("show");
-    }
+  if (event.target.value === "Applicable") {
+    fatality.classList.add("show");
+    proof.classList.add("show");
+  } else {
+    fatality.classList.remove("show");
+    proof.classList.remove("show");
   }
+}
 
-  document.querySelectorAll('input[name^="q"]').forEach((radio) => {
-    radio.addEventListener("change", toggleFatalityVisibility);
-    toggleFatalityVisibility({ target: radio }); // Initialize state
-  });
-
-  // Toggle expand/collapse
-  function setupToggle(toggleId, cardId) {
-    const header = document.getElementById(toggleId);
-    const card = document.getElementById(cardId);
-
-    function toggleCard() {
-      const isHidden = card.classList.toggle("hidden");
-      header.setAttribute("aria-expanded", !isHidden);
-      header.classList.toggle("collapsed", isHidden);
-    }
-
-    header.addEventListener("click", toggleCard);
-    header.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggleCard();
-      }
-    });
-  }
-
-  // Setup toggles
-  sections.forEach((section) => {
-    setupToggle(section.toggleId, section.cardId);
-  });
+document.querySelectorAll('input[name^="q"]').forEach((radio) => {
+  radio.addEventListener("change", toggleFatalityVisibility);
+  toggleFatalityVisibility({ target: radio }); // Initialize state
 });
 
-document
-  .getElementById("confirmProceedBtn")
-  .addEventListener("click", function () {
-    // Find the form element
-    var form = document.querySelector("form");
+// ---------------------------
+// Toggle expand/collapse sections
+// ---------------------------
+function setupToggle(toggleId, cardId) {
+  const header = document.getElementById(toggleId);
+  const card = document.getElementById(cardId);
 
-    // Make sure the form is ready for submission
-    if (form) {
-      // Submit the form (this triggers the backend to save data)
-      form.submit();
+  function toggleCard() {
+    const isHidden = card.classList.toggle("hidden");
+    header.setAttribute("aria-expanded", !isHidden);
+    header.classList.toggle("collapsed", isHidden);
+  }
+
+  header.addEventListener("click", toggleCard);
+  header.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleCard();
     }
+  });
+}
 
-    // Close the modal after submitting the form
-    var modal = new bootstrap.Modal(
-      document.getElementById("confirmationModal"),
-    );
-    modal.hide();
-  });
-document
-  .getElementById("confirmProceedBtn")
-  .addEventListener("click", function () {
-    // Submit the form
-    document.getElementById("reviewForm").submit();
-  });
+// Setup toggles for all sections
+sections.forEach((section) => {
+  setupToggle(section.toggleId, section.cardId);
+});
+
+// ---------------------------
+// Modal confirmation + form submission
+// ---------------------------
+
+// Get elements
+const submitBtn = document.querySelector(".submit-review");
+const confirmBtn = document.getElementById("confirmProceedBtn");
+const form = document.getElementById("reviewForm");
+const confirmationModalEl = document.getElementById("confirmationModal");
+const confirmationModal = new bootstrap.Modal(confirmationModalEl);
+
+// Show modal only if form is valid
+submitBtn.addEventListener("click", function (e) {
+  if (!form.checkValidity()) {
+    form.reportValidity(); // show HTML5 validation errors
+    return;
+  }
+
+  // Show modal
+  confirmationModal.show();
+});
+
+// Submit form when "Proceed" is clicked
+confirmBtn.addEventListener("click", function () {
+  // Close modal
+  confirmationModal.hide();
+
+  // Submit form naturally (triggers backend and validations if needed)
+  form.submit();
+});
