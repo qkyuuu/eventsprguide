@@ -69,19 +69,21 @@ if (!$row) {
 $builder_email = $row['builder_email'];
 
 // ---------------------------
-// 6. Insert pr_appeals
+// 6. Insert pr_appeals (FIXED)
 // ---------------------------
 $sql = "
 INSERT INTO pr_appeals (pr_id, builder_email, submission_date)
+OUTPUT INSERTED.appeal_id
 VALUES (?, ?, GETDATE())
 ";
-$stmt = sqlsrv_prepare($conn, $sql, [$pr_id, $builder_email]);
-sqlsrv_execute($stmt);
 
-// Get appeal_id
-$appealIdStmt = sqlsrv_query($conn, "SELECT SCOPE_IDENTITY() AS appeal_id");
-$appealRow = sqlsrv_fetch_array($appealIdStmt, SQLSRV_FETCH_ASSOC);
-$appeal_id = $appealRow['appeal_id'];
+$stmt = sqlsrv_prepare($conn, $sql, [$pr_id, $builder_email]);
+if (!sqlsrv_execute($stmt)) {
+    die(print_r(sqlsrv_errors(), true));
+}
+
+$row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+$appeal_id = $row['appeal_id'] ?? null;
 
 if (!$appeal_id) {
     die("Failed to retrieve appeal_id.");
@@ -136,7 +138,7 @@ foreach ($builder_answers as $qid => $answer) {
 }
 
 // ---------------------------
-// 8. Cleanup
+// 8. Close connection
 // ---------------------------
 sqlsrv_close($conn);
 
