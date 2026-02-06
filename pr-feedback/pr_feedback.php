@@ -271,7 +271,7 @@ if ($answer && $cleanAnswer !== 'not applicable' && $cleanAnswer !== '') {
         
     if (!empty($appeal_items[$qid])): 
     echo "<img class='appeal-icon'
-        src='https://eventsprguide.infinityfree.me/img/appeal.png'
+        src='https://raw.githubusercontent.com/qkyuuu/eventsprguide/main/img/appeal.png'
         style='width:24px;height:24px;cursor:pointer;margin-left:10px'
         data-bs-toggle='modal'
         data-bs-target='#appealModal'
