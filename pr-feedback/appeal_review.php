@@ -249,9 +249,51 @@ document.querySelectorAll('.answer-radio').forEach(radio => {
     });
 });
 
-document.getElementById("appealForm").addEventListener("submit", function(e) {
-    document.getElementById("loadingOverlay").style.display = "block";
+    document.getElementById("appealForm").addEventListener("submit", function(e) {
+    e.preventDefault(); // prevent default submission
+
+    // Swal confirmation
+    Swal.fire({
+        title: "Proceed with Appeal?",
+        text: "Proceeding will send an email to the Peer Reviewer. Do you wish to continue?",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, proceed",
+        cancelButtonText: "No, cancel"
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Show loading overlay
+            document.getElementById("loadingOverlay").style.display = "block";
+
+            // Submit form via fetch (AJAX)
+            const formData = new FormData(document.getElementById("appealForm"));
+
+            fetch("submit_appeal.php", {
+                method: "POST",
+                body: formData
+            })
+            .then(res => res.text())
+            .then(data => {
+                document.getElementById("loadingOverlay").style.display = "none";
+                Swal.fire({
+                    icon: "success",
+                    title: "Appeal Submitted",
+                    text: "Your appeal has been successfully submitted and the Peer Reviewer has been notified.",
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    // Redirect back to PR feedback page
+                    window.location.href = "pr_feedback.php?pr_id=" + encodeURIComponent(formData.get("pr_id"));
+                });
+            })
+            .catch(err => {
+                document.getElementById("loadingOverlay").style.display = "none";
+                Swal.fire("Error", "Failed to submit appeal: " + err, "error");
+            });
+        }
+    });
 });
+
 </script>
 </body>
 </html>
