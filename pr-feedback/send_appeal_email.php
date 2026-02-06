@@ -188,7 +188,14 @@ curl_setopt_array($ch, [
     CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
     CURLOPT_SSL_VERIFYPEER => false
 ]);
-curl_exec($ch);
+
+$response = curl_exec($ch);
+if(curl_errno($ch)) {
+    echo 'Curl error: ' . curl_error($ch);
+} else {
+    echo 'Flow response: ' . $response;
+}
 curl_close($ch);
+
 
 echo "Appeal email sent.";
