@@ -609,7 +609,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       if (appeal.image_paths && appeal.image_paths.length > 0) {
         appeal.image_paths.forEach(img => {
           const el = document.createElement("img");
-          el.src = "../uploads/" + img;
+          el.src = azureBlobBaseUrl + img;
           el.className = "img-thumbnail me-2 mb-2";
           el.style.maxWidth = "150px";
           el.style.cursor = "pointer";
