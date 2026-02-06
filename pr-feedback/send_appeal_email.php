@@ -141,12 +141,23 @@ foreach ($appeal_items as $qid => $appeal) {
         .htmlspecialchars($appeal['explanation'] ?? 'No explanation provided').'</td></tr>';
 
     if (!empty($appeal['image_paths'])) {
-        $emailBody .= '<tr><td>';
+        $emailBody .= '<tr><td><table width="100%" cellpadding="5"><tr>';
+        $count = 0;
         foreach ($appeal['image_paths'] as $img) {
             $imgUrl = $azureBlobBase . rawurlencode($img);
-            $emailBody .= '<img src="'.$imgUrl.'" style="max-width:150px;margin:5px">';
+            $emailBody .= '
+            <td width="33%" align="center">
+                <img src="' . $imgUrl . '" width="100%" style="border-radius:6px;">
+            </td>';
+
+            $count++;
+            if ($count % 3 === 0) {
+                $emailBody .= '</tr><tr>';
+            }
         }
-        $emailBody .= '</td></tr>';
+        $emailBody .= '</tr></table></td></tr>';
+    } else {
+        $emailBody .= '<tr><td style="color:#555;">No images for this question.</td></tr>';
     }
 
     $emailBody .= '</table></td></tr>';
