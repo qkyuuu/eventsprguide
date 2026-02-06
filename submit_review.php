@@ -7,6 +7,92 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 
+/**
+ * Show loader while Azure SQL wakes up
+ */
+function showDbWakeLoader() {
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Waking Database…</title>
+        <meta http-equiv="refresh" content="30">
+        <style>
+            body {
+                margin: 0;
+                height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: #0f172a;
+                font-family: Arial, sans-serif;
+            }
+
+            .loader {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-direction: column;
+                gap: 12px;
+            }
+
+            .loading-text {
+                color: white;
+                font-size: 14pt;
+                font-weight: 600;
+            }
+
+            .dot {
+                animation: blink 1.5s infinite;
+            }
+            .dot:nth-child(2) { animation-delay: .3s; }
+            .dot:nth-child(3) { animation-delay: .6s; }
+
+            .loading-bar-background {
+                width: 220px;
+                height: 30px;
+                padding: 5px;
+                background: #212121;
+                border-radius: 15px;
+                box-shadow: inset -2px 2px 4px #0c0c0c;
+            }
+
+            .loading-bar {
+                height: 20px;
+                width: 0%;
+                background: linear-gradient(0deg, #de4a0f, #f9c74f);
+                border-radius: 10px;
+                animation: loading 4s ease-out infinite;
+            }
+
+            @keyframes loading {
+                0% { width: 0; }
+                80% { width: 100%; }
+                100% { width: 100%; }
+            }
+
+            @keyframes blink {
+                0%,100% { opacity: 0; }
+                50% { opacity: 1; }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="loader">
+            <div class="loading-text">
+                Database is waking up
+                <span class="dot">.</span><span class="dot">.</span><span class="dot">.</span>
+            </div>
+            <div class="loading-bar-background">
+                <div class="loading-bar"></div>
+            </div>
+        </div>
+    </body>
+    </html>
+    <?php
+}
+
 // ---------------------------
 // 1. Azure SQL Connection
 // ---------------------------
@@ -22,7 +108,26 @@ $serverName = "tcp:qms-server.database.windows.net,1433";
 $conn = sqlsrv_connect($serverName, $connectionOptions);
 
 if (!$conn) {
-    die(print_r(sqlsrv_errors(), true));
+    $errors = sqlsrv_errors();
+    $isColdStart = false;
+
+    foreach ($errors as $err) {
+        if (
+            in_array($err['SQLSTATE'], ['HYT00', '08001']) ||
+            strpos($err['message'], 'Login timeout expired') !== false
+        ) {
+            $isColdStart = true;
+            break;
+        }
+    }
+
+    if ($isColdStart) {
+        showDbWakeLoader();
+        exit;
+    }
+
+    // Not a cold start → real error
+    die(print_r($errors, true));
 }
 
 // ---------------------------
@@ -77,7 +182,6 @@ foreach ($_FILES as $inputName => $fileArray) {
                     $content
                 );
 
-                // Save filename only
                 $imagePaths['q'.$qId][] = $blobName;
             }
         }
