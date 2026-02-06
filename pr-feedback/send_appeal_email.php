@@ -134,7 +134,7 @@ foreach ($appeal_items as $qid => $appeal) {
     $emailBody .= '
 <tr><td style="padding:15px">
 <table width="100%" bgcolor="#f1f4f9" style="border-radius:8px" cellpadding="15">
-<tr><td style="padding:5px 10px"><strong>Question:</strong> '.htmlspecialchars($qText).'</td></tr>';
+<tr><td style="padding:15px 10px 5px 10px"><strong>Question:</strong> '.htmlspecialchars($qText).'</td></tr>';
 
     $emailBody .= '
 <tr><td style="padding:5px 10px"><strong>Builder Appeal Explanation:</strong><br>'
