@@ -606,25 +606,32 @@ document.addEventListener('DOMContentLoaded', async function() {
       const imgContainer = document.getElementById('appealImages');
       imgContainer.innerHTML = "";
 
-      if (appeal.image_paths && appeal.image_paths.length > 0) {
-        appeal.image_paths.forEach(img => {
-          const el = document.createElement("img");
-          el.src = azureBlobBaseUrl + img;
-          el.className = "img-thumbnail me-2 mb-2";
-          el.style.maxWidth = "150px";
-          el.style.cursor = "pointer";
+      const azureBlobBaseUrl =
+  "https://eventsprimagestore.blob.core.windows.net/pr-images/";
 
-          // Open appeal image modal
-          el.addEventListener('click', () => {
-            document.getElementById('appealModalImage').src = el.src;
-            new bootstrap.Modal(document.getElementById('appealImageModal')).show();
-          });
+if (appeal.image_paths && appeal.image_paths.length > 0) {
+  appeal.image_paths.forEach(img => {
+    const el = document.createElement("img");
 
-          imgContainer.appendChild(el);
-        });
-      } else {
-        imgContainer.innerHTML = "<p class='text-muted'>No appeal images.</p>";
-      }
+    el.src = azureBlobBaseUrl + img;
+    el.className = "img-thumbnail me-2 mb-2";
+    el.style.maxWidth = "150px";
+    el.style.cursor = "pointer";
+
+    // Open appeal image modal
+    el.addEventListener('click', () => {
+      document.getElementById('appealModalImage').src = el.src;
+      new bootstrap.Modal(
+        document.getElementById('appealImageModal')
+      ).show();
+    });
+
+    imgContainer.appendChild(el);
+  });
+} else {
+  imgContainer.innerHTML = "<p class='text-muted'>No appeal images.</p>";
+}
+
     });
   });
 
