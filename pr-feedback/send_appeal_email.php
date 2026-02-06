@@ -166,13 +166,19 @@ foreach ($appeal_items as $qid => $appeal) {
 
 $emailBody .= '
 <tr>
-    <td width="35%">&nbsp</td>
-    <td width="30%" align="center" style="padding:12px 25px;background-color:#192f75;color:#fff;">
-        <a href="'.$webBaseUrl.'/pr-feedback/pr_feedback.php?pr_id='.urlencode($pr_id).'" text-decoration:none;font-weight:bold;font-size:12pt">
-            View Feedback
-        </a>
+    <td>
+    <table width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+            <td width="35%">&nbsp</td>
+            <td width="30%" align="center" style="padding:12px 25px;background-color:#192f75;color:#fff;">
+                <a href="'.$webBaseUrl.'/pr-feedback/pr_feedback.php?pr_id='.urlencode($pr_id).'" text-decoration:none;font-weight:bold;font-size:12pt">
+                    View Feedback
+                </a>
+            </td>
+            <td width="35%">&nbsp</td>
+        </tr>
+    </table>
     </td>
-    <td width="35%">&nbsp</td>
 </tr>
 
 <tr><td><img src="'.$githubImg.'Footer.png" width="100%"></td></tr>
